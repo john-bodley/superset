@@ -30,6 +30,7 @@ from flask import g
 from flask_babel import lazy_gettext as _
 import pandas
 from sqlalchemy import select
+from sqlalchemy.dialects import registry
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.sql import text
@@ -42,6 +43,12 @@ from superset.utils import QueryStatus, SupersetTemplateException
 config = app.config
 
 tracking_url_trans = conf.get('TRACKING_URL_TRANSFORMER')
+
+registry.register(
+    'minerva',
+    'superset.db_engines.sqlalchemy_minerva',
+    'MinervaDialect',
+)
 
 Grain = namedtuple('Grain', 'name label function')
 
@@ -751,6 +758,9 @@ class PrestoEngineSpec(BaseEngineSpec):
         if df.empty:
             return ''
         return df.to_dict()[field_to_return][0]
+
+class MinervaEngineSpec(PrestoEngineSpec):
+    engine = 'minerva'
 
 
 class HiveEngineSpec(PrestoEngineSpec):
