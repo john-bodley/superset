@@ -195,6 +195,7 @@ class DruidCluster(Model, AuditMixinNullable, ImportMixin):
         pool = ThreadPool()
         ds_refresh = list(ds_map.values())
         metadata = pool.map(_fetch_metadata_for, ds_refresh)
+        print(metadata)
         pool.close()
         pool.join()
 
@@ -218,6 +219,8 @@ class DruidCluster(Model, AuditMixinNullable, ImportMixin):
                             column_name=col)
                         with session.no_autoflush:
                             session.add(col_obj)
+                    if cols[col]['type'] == 'FLOAT':
+                        print(col, cols[col], type(cols[col]))
                     col_obj.type = cols[col]['type']
                     col_obj.datasource = datasource
                     if col_obj.type == 'STRING':
@@ -612,6 +615,7 @@ class DruidDatasource(Model, BaseDatasource):
         """Returns segment metadata from the latest segment"""
         logging.info('Syncing datasource [{}]'.format(self.datasource_name))
         client = self.cluster.get_pydruid_client()
+        print(dir(client))
         try:
             results = client.time_boundary(datasource=self.datasource_name)
         except IOError:
@@ -637,6 +641,7 @@ class DruidDatasource(Model, BaseDatasource):
                 intervals=lbound + '/' + rbound,
                 merge=self.merge_flag,
                 analysisTypes=[])
+            print(segment_metadata)
         except Exception as e:
             logging.warning('Failed first attempt to get latest segment')
             logging.exception(e)

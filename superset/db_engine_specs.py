@@ -32,6 +32,7 @@ from flask_babel import lazy_gettext as _
 import pandas
 import sqlalchemy as sqla
 from sqlalchemy import select
+from sqlalchemy.dialects import registry
 from sqlalchemy.engine import create_engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.sql import text
@@ -50,6 +51,12 @@ tracking_url_trans = conf.get('TRACKING_URL_TRANSFORMER')
 hive_poll_interval = conf.get('HIVE_POLL_INTERVAL')
 
 Grain = namedtuple('Grain', 'name label function duration')
+
+registry.register(
+    'minerva',
+    'superset.connectors.sqla.sqlalchemy_minerva',
+    'MinervaDialect',
+)
 
 
 class LimitMethod(object):
@@ -887,6 +894,43 @@ class PrestoEngineSpec(BaseEngineSpec):
         return df.to_dict()[field_to_return][0]
 
 
+class MinervaEngineSpec(PrestoEngineSpec):
+    engine = 'minerva'
+
+
+    time_grains = (
+        Grain('Time Column', _('Time Column'), '{col}', None),
+        Grain('second', _('second'),
+              "FLOOR({col} TO SECOND)",
+              'PT1S'),
+        Grain('minute', _('minute'),
+              "FLOOR({col} TO MINUTE)",
+              'PT1M'),
+        Grain('hour', _('hour'),
+              "FLOOR({col} TO HOUR)",
+              'PT1H'),
+        Grain('day', _('day'),
+              "FLOOR({col} TO DAY)",
+              'P1D'),
+        Grain('week', _('week'),
+              "FLOOR({col} TO WEEK)",
+              'P1W'),
+        Grain('month', _('month'),
+              "FLOOR({col} TO MONTH)",
+              'P1M'),
+        Grain('quarter', _('quarter'),
+              "FLOOR({col} TO QUARTER)",
+              'P0.25Y'),
+        Grain('year', _('year'),
+              "FLOOR({col} TO YEAR)",
+              'P1Y'),
+    )
+
+    @classmethod
+    def convert_dttm(cls, target_type, dttm):
+        return "TIMESTAMP '{}'".format(dttm.strftime('%Y-%m-%d %H:%M:%S'))
+
+
 class HiveEngineSpec(PrestoEngineSpec):
 
     """Reuses PrestoEngineSpec functionality."""
@@ -1407,3 +1451,5 @@ class KylinEngineSpec(BaseEngineSpec):
 engines = {
     o.engine: o for o in globals().values()
     if inspect.isclass(o) and issubclass(o, BaseEngineSpec)}
+
+

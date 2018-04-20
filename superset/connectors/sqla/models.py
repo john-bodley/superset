@@ -556,6 +556,10 @@ class SqlaTable(Model, BaseDatasource):
 
             if is_timeseries:
                 timestamp = dttm_col.get_timestamp_expression(time_grain)
+                print('>>>> timestamp <<<<')
+                print(dttm_col)
+                print(time_grain)
+                print(timestamp, timestamp.name)
                 select_exprs += [timestamp]
                 groupby_exprs += [timestamp]
 
@@ -642,8 +646,11 @@ class SqlaTable(Model, BaseDatasource):
         if row_limit:
             qry = qry.limit(row_limit)
 
+        print('>>> models <<<')
+        print(is_timeseries, timeseries_limit, groupby, not time_groupby_inline)
         if is_timeseries and \
                 timeseries_limit and groupby and not time_groupby_inline:
+            print(self.database.db_engine_spec.inner_joins)
             if self.database.db_engine_spec.inner_joins:
                 # some sql dialects require for order by expressions
                 # to also be in the select clause -- others, e.g. vertica,
@@ -673,6 +680,13 @@ class SqlaTable(Model, BaseDatasource):
                         groupby_exprs[i] == column(gb + '__'))
 
                 tbl = tbl.join(subq.alias(), and_(*on_clause))
+
+                print('>>> tbl <<<')
+                print(tbl, type(tbl))
+                print('>>> subq <<<')
+                print(subq.alias())
+                print('>>> and <<<')
+                print(and_(*on_clause))
             else:
                 # run subquery to get top groups
                 subquery_obj = {
@@ -694,6 +708,8 @@ class SqlaTable(Model, BaseDatasource):
                 result = self.query(subquery_obj)
                 dimensions = [c for c in result.df.columns if c not in metrics]
                 top_groups = self._get_top_groups(result.df, dimensions)
+                print('>>> top_groups <<<')
+                print(top_groups)
                 qry = qry.where(top_groups)
 
         return qry.select_from(tbl)
