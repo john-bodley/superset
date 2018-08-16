@@ -38,6 +38,7 @@ from superset import (
     viz,
 )
 from superset.connectors.connector_registry import ConnectorRegistry
+#from superset.connectors.druid.models import DruidDatasource
 from superset.connectors.sqla.models import AnnotationDatasource, SqlaTable
 from superset.exceptions import SupersetException
 from superset.forms import CsvToDatabaseForm
@@ -101,7 +102,25 @@ class SliceFilter(SupersetFilter):
             return query
         perms = self.get_view_menus('datasource_access')
         # TODO(bogdan): add `schema_access` support here
-        return query.filter(self.model.perm.in_(perms))
+
+        return query.filter(
+            or_(
+                and_(
+                    Slice.datasource_type == 'druid',
+                    Slice.datasource_id.in_(
+                        db.session.query(DruidDatasource.id)
+                        .filter(DruidDatasource.perm.in_(perms))
+                    ),
+                ),
+                and_(
+                    Slice.datasource_type == 'table',
+                    Slice.datasource_id.in_(
+                        db.session.query(SqlaTable.id)
+                        .filter(SqlaTable.perm.in_(perms))
+                    ),
+                ),
+            ),
+        )
 
 
 class DashboardFilter(SupersetFilter):

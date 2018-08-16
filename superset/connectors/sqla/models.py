@@ -14,9 +14,10 @@ from flask_babel import lazy_gettext as _
 import pandas as pd
 import sqlalchemy as sa
 from sqlalchemy import (
-    and_, asc, Boolean, Column, DateTime, desc, ForeignKey, Integer, or_,
+    and_, asc, Boolean, Column, DateTime, desc, ForeignKey, func, Integer, or_,
     select, String, Text,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql import column, literal_column, table, text
@@ -306,6 +307,14 @@ class SqlaTable(Model, BaseDatasource):
     def __repr__(self):
         return self.name
 
+    @hybrid_property
+    def perm(self):
+        return '[{obj.database}].[{obj.table_name}](id:{obj.id})'.format(obj=self)
+
+    @perm.expression
+    def perm(cls):
+        return func.concat('[', cls.database, '].[', cls.table_name, '](id:', cls.id, ')')
+
     @property
     def connection(self):
         return str(self.database)
@@ -328,11 +337,6 @@ class SqlaTable(Model, BaseDatasource):
     def schema_perm(self):
         """Returns schema permission if present, database one otherwise."""
         return security_manager.get_schema_perm(self.database, self.schema)
-
-    def get_perm(self):
-        return (
-            '[{obj.database}].[{obj.table_name}]'
-            '(id:{obj.id})').format(obj=self)
 
     @property
     def name(self):

@@ -144,7 +144,6 @@ class Slice(Model, AuditMixinNullable, ImportMixin):
     params = Column(Text)
     description = Column(Text)
     cache_timeout = Column(Integer)
-    perm = Column(String(1000))
     owners = relationship(security_manager.user_model, secondary=slice_user)
 
     export_fields = ('slice_name', 'datasource_type', 'datasource_name',
@@ -649,7 +648,6 @@ class Database(Model, AuditMixinNullable, ImportMixin):
         "engine_params": {}
     }
     """))
-    perm = Column(String(1000))
 
     impersonate_user = Column(Boolean, default=False)
     export_fields = ('database_name', 'sqlalchemy_uri', 'cache_timeout',

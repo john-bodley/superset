@@ -33,8 +33,9 @@ import requests
 from six import string_types
 import sqlalchemy as sa
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint,
+    Boolean, Column, DateTime, ForeignKey, func, Integer, String, Text, UniqueConstraint,
 )
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 
 from superset import conf, db, import_util, security_manager, utils
@@ -494,6 +495,14 @@ class DruidDatasource(Model, BaseDatasource):
     export_parent = 'cluster'
     export_children = ['columns', 'metrics']
 
+    @hybrid_property
+    def perm(self):
+        return '[{obj.cluster_name}].[{obj.datasource_name}](id:{obj.id})'.format(obj=self)
+
+    @perm.expression
+    def perm(cls):
+        return func.concat('[', cls.cluster_name, '].[', cls.datasource_name, '](id:', cls.id, ')')
+
     @property
     def database(self):
         return self.cluster
@@ -523,11 +532,6 @@ class DruidDatasource(Model, BaseDatasource):
     def schema_perm(self):
         """Returns schema permission if present, cluster one otherwise."""
         return security_manager.get_schema_perm(self.cluster, self.schema)
-
-    def get_perm(self):
-        return (
-            '[{obj.cluster_name}].[{obj.datasource_name}]'
-            '(id:{obj.id})').format(obj=self)
 
     def update_from_object(self, obj):
         return NotImplementedError()

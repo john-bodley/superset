@@ -351,6 +351,9 @@ def merge_perm(sm, permission_name, view_menu_name, connection):
 
 
 def set_perm(mapper, connection, target):  # noqa
+    print('>>> set_perm <<<')
+    print(mapper, connection, target)
+    print(target.perm, target.get_perm())
 
     if target.perm != target.get_perm():
         link_table = target.__table__

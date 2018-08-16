@@ -48,7 +48,6 @@ class BaseDatasource(AuditMixinNullable, ImportMixin):
     offset = Column(Integer, default=0)
     cache_timeout = Column(Integer)
     params = Column(String(1000))
-    perm = Column(String(1000))
 
     sql = None
     owner = None
@@ -196,7 +195,6 @@ class BaseDatasource(AuditMixinNullable, ImportMixin):
             'offset': self.offset,
             'cache_timeout': self.cache_timeout,
             'params': self.params,
-            'perm': self.perm,
 
             # sqla-specific
             'sql': self.sql,
