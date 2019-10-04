@@ -289,7 +289,7 @@ class SupersetSecurityManager(SecurityManager):
         return conf.get("PERMISSION_INSTRUCTIONS_LINK")
 
     def _datasource_access_by_name(
-        self, database: "Database", table_name: str, schema: str = None
+        self, database: "Database", table_name: str, schema: Optional[str] = None
     ) -> bool:
         """
         Return True if the user can access the SQL table, False otherwise.
@@ -318,7 +318,7 @@ class SupersetSecurityManager(SecurityManager):
         return False
 
     def _get_schema_and_table(
-        self, table_in_query: str, schema: str
+        self, table_in_query: str, schema: Optional[str]
     ) -> Tuple[str, str]:
         """
         Return the SQL schema/table tuple associated with the table extracted from the
@@ -339,7 +339,7 @@ class SupersetSecurityManager(SecurityManager):
         return (schema, table_name_pieces[0])
 
     def _datasource_access_by_fullname(
-        self, database: "Database", table_in_query: str, schema: str
+        self, database: "Database", table_in_query: str, schema: Optional[str]
     ) -> bool:
         """
         Return True if the user can access the table extracted from the SQL query, False
@@ -358,7 +358,9 @@ class SupersetSecurityManager(SecurityManager):
             database, table_name, schema=table_schema
         )
 
-    def rejected_tables(self, sql: str, database: "Database", schema: str) -> List[str]:
+    def rejected_tables(
+        self, sql: str, database: "Database", schema: Optional[str]
+    ) -> List[str]:
         """
         Return the list of rejected SQL table names.
 
@@ -434,7 +436,7 @@ class SupersetSecurityManager(SecurityManager):
         self,
         database: "Database",
         datasource_names: List[DatasourceName],
-        schema: Optional[str] = None,
+        schema: Optional[str],
     ) -> List[DatasourceName]:
         """
         Return the list of SQL tables accessible by the user.
