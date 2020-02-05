@@ -23,7 +23,7 @@ assists people when migrating to a new version.
 
 ## Next
 * [9046](https://github.com/apache/incubator-superset/pull/9046): Replaces `can_only_access_owned_queries` by
-`all_query_access` favoring a white list approach. Since a new permission is introduced use `superset init` 
+`all_query_access` favoring a white list approach. Since a new permission is introduced use `superset init`
 to create and associate it by default to the `Admin` role. Note that, by default, all non `Admin` users will
 not be able to access queries they do not own.
 
@@ -77,7 +77,13 @@ using `ENABLE_PROXY_FIX = True`, review the newly-introducted variable,
 [MessagePack](https://github.com/msgpack/msgpack-python) and
 [PyArrow](https://arrow.apache.org/docs/python/) for async query results
 backend serialization. To disable set `RESULTS_BACKEND_USE_MSGPACK = False`
-in your configuration.
+in your configuration. Note you will need to clear the existing results cache store. If
+you are using Redis the results cache (as opposed to the Celery results backend) can be
+cleared via:
+
+```bash
+redis-cli -n <database-number> --scan --pattern flask_cache_* | xargs redis-cli -n <database-number> del
+```
 
 * [8371](https://github.com/apache/incubator-superset/pull/8371): makes
 `tables.table_name`, `dbs.database_name`, `datasources.cluster_name`, and `clusters.cluster_name` non-nullable.
