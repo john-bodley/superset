@@ -24,6 +24,7 @@ from flask import Flask, redirect
 from flask_appbuilder import expose, IndexView
 from flask_babel import gettext as __, lazy_gettext as _
 from flask_compress import Compress
+from simplejson import JSONEncoder
 
 from superset.connectors.connector_registry import ConnectorRegistry
 from superset.extensions import (
@@ -53,6 +54,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    app.json_encoder = JSONEncoder
 
     try:
         # Allow user to override our config completely
@@ -228,9 +230,7 @@ class SupersetAppInitializer:
         # Setup regular views
         #
         if appbuilder.app.config["LOGO_TARGET_PATH"]:
-            appbuilder.add_link(
-                "Home", label=__("Home"), href="/superset/welcome/",
-            )
+            appbuilder.add_link("Home", label=__("Home"), href="/superset/welcome/")
         appbuilder.add_view(
             AnnotationLayerModelView,
             "Annotation Layers",
