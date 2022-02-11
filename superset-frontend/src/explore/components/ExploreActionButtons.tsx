@@ -23,8 +23,9 @@ import Icons from 'src/components/Icons';
 import { Tooltip } from 'src/components/Tooltip';
 import copyTextToClipboard from 'src/utils/copy';
 import withToasts from 'src/components/MessageToasts/withToasts';
+import { useUrlShortener } from 'src/hooks/useUrlShortener';
 import EmbedCodeButton from './EmbedCodeButton';
-import { exportChart } from '../exploreUtils';
+import { exportChart, getExploreLongUrl } from '../exploreUtils';
 import ExploreAdditionalActionsMenu from './ExploreAdditionalActionsMenu';
 import { ExportToCSVDropdown } from './ExportToCSVDropdown';
 
@@ -103,12 +104,14 @@ const ExploreActionButtons = (props: ExploreActionButtonsProps) => {
 
   const copyTooltipText = t('Copy chart URL to clipboard');
   const [copyTooltip, setCopyTooltip] = useState(copyTooltipText);
+  const longUrl = getExploreLongUrl(latestQueryFormData);
+  const getShortUrl = useUrlShortener(longUrl);
 
   const doCopyLink = async () => {
     try {
       setCopyTooltip(t('Loading...'));
-      const url = window.location.href;
-      await copyTextToClipboard(url);
+      const shortUrl = await getShortUrl();
+      await copyTextToClipboard(shortUrl);
       setCopyTooltip(t('Copied to clipboard!'));
       addSuccessToast(t('Copied to clipboard!'));
     } catch (error) {
@@ -120,8 +123,8 @@ const ExploreActionButtons = (props: ExploreActionButtonsProps) => {
   const doShareEmail = async () => {
     try {
       const subject = t('Superset Chart');
-      const url = window.location.href;
-      const body = encodeURIComponent(t('%s%s', 'Check out this chart: ', url));
+      const shortUrl = await getShortUrl();
+      const body = t('%s%s', 'Check out this chart: ', shortUrl);
       window.location.href = `mailto:?Subject=${subject}%20&Body=${body}`;
     } catch (error) {
       addDangerToast(t('Sorry, something went wrong. Try again later.'));
@@ -176,7 +179,7 @@ const ExploreActionButtons = (props: ExploreActionButtonsProps) => {
             tooltip={t('Share chart by email')}
             onClick={doShareEmail}
           />
-          <EmbedCodeButton />
+          <EmbedCodeButton latestQueryFormData={latestQueryFormData} />
           <ActionButton
             prefixIcon={<Icons.FileTextOutlined iconSize="m" />}
             text=".JSON"

@@ -45,7 +45,6 @@ const createProps = (viz_type = 'sunburst') => ({
   forceRefresh: jest.fn(),
   handleToggleFullSize: jest.fn(),
   toggleExpandSlice: jest.fn(),
-  onExploreChart: jest.fn(),
   slice: {
     slice_id: 371,
     slice_url: '/superset/explore/?form_data=%7B%22slice_id%22%3A%20371%7D',
@@ -91,7 +90,7 @@ const createProps = (viz_type = 'sunburst') => ({
   chartStatus: 'rendered',
   showControls: true,
   supersetCanShare: true,
-  formData: { slice_id: 1, datasource: '58__table' },
+  formData: {},
 });
 
 test('Should render', () => {

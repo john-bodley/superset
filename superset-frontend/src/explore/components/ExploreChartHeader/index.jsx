@@ -56,6 +56,7 @@ const CHART_STATUS_MAP = {
 
 const propTypes = {
   actions: PropTypes.object.isRequired,
+  addHistory: PropTypes.func,
   can_overwrite: PropTypes.bool.isRequired,
   can_download: PropTypes.bool.isRequired,
   dashboardId: PropTypes.number,

@@ -21,7 +21,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
-import { styled, t, css, useTheme, logging } from '@superset-ui/core';
+import { styled, t, css, useTheme } from '@superset-ui/core';
 import { debounce } from 'lodash';
 import { Resizable } from 're-resizable';
 
@@ -37,28 +37,26 @@ import {
   LocalStorageKeys,
 } from 'src/utils/localStorageHelpers';
 import { URL_PARAMS } from 'src/constants';
-import { getUrlParam } from 'src/utils/urlUtils';
 import cx from 'classnames';
 import * as chartActions from 'src/chart/chartAction';
 import { fetchDatasourceMetadata } from 'src/dashboard/actions/datasources';
 import { chartPropShape } from 'src/dashboard/util/propShapes';
 import { mergeExtraFormData } from 'src/dashboard/components/nativeFilters/utils';
-import { postFormData, putFormData } from 'src/explore/exploreUtils/formData';
-import ExploreChartPanel from '../ExploreChartPanel';
-import ConnectedControlPanelsContainer from '../ControlPanelsContainer';
-import SaveModal from '../SaveModal';
-import QueryAndSaveBtns from '../QueryAndSaveBtns';
-import DataSourcePanel from '../DatasourcePanel';
-import { mountExploreUrl } from '../../exploreUtils';
-import { areObjectsEqual } from '../../../reduxUtils';
-import { getFormDataFromControls } from '../../controlUtils';
-import * as exploreActions from '../../actions/exploreActions';
-import * as saveModalActions from '../../actions/saveModalActions';
-import * as logActions from '../../../logger/actions';
+import ExploreChartPanel from './ExploreChartPanel';
+import ConnectedControlPanelsContainer from './ControlPanelsContainer';
+import SaveModal from './SaveModal';
+import QueryAndSaveBtns from './QueryAndSaveBtns';
+import DataSourcePanel from './DatasourcePanel';
+import { getExploreLongUrl } from '../exploreUtils';
+import { areObjectsEqual } from '../../reduxUtils';
+import { getFormDataFromControls } from '../controlUtils';
+import * as exploreActions from '../actions/exploreActions';
+import * as saveModalActions from '../actions/saveModalActions';
+import * as logActions from '../../logger/actions';
 import {
   LOG_ACTIONS_MOUNT_EXPLORER,
   LOG_ACTIONS_CHANGE_EXPLORE_CONTROLS,
-} from '../../../logger/LogUtils';
+} from '../../logger/LogUtils';
 
 const propTypes = {
   ...ExploreChartPanel.propTypes,
@@ -163,44 +161,6 @@ function useWindowSize({ delayMs = 250 } = {}) {
   return size;
 }
 
-const updateHistory = debounce(
-  async (formData, datasetId, isReplace, standalone, force, title) => {
-    const payload = { ...formData };
-    const chartId = formData.slice_id;
-    const additionalParam = {};
-    if (chartId) {
-      additionalParam[URL_PARAMS.sliceId.name] = chartId;
-    } else {
-      additionalParam[URL_PARAMS.datasetId.name] = datasetId;
-    }
-
-    try {
-      let key;
-      let stateModifier;
-      if (isReplace) {
-        key = await postFormData(datasetId, formData, chartId);
-        stateModifier = 'replaceState';
-      } else {
-        key = getUrlParam(URL_PARAMS.formDataKey);
-        await putFormData(datasetId, key, formData, chartId);
-        stateModifier = 'pushState';
-      }
-      const url = mountExploreUrl(
-        standalone ? URL_PARAMS.standalone.name : null,
-        {
-          [URL_PARAMS.formDataKey.name]: key,
-          ...additionalParam,
-        },
-        force,
-      );
-      window.history[stateModifier](payload, title, url);
-    } catch (e) {
-      logging.warn('Failed at altering browser history', e);
-    }
-  },
-  1000,
-);
-
 function ExploreViewContainer(props) {
   const dynamicPluginContext = usePluginContext();
   const dynamicPlugin = dynamicPluginContext.dynamicPlugins[props.vizType];
@@ -232,31 +192,39 @@ function ExploreViewContainer(props) {
   };
 
   const addHistory = useCallback(
-    async ({ isReplace = false, title } = {}) => {
+    ({ isReplace = false, title } = {}) => {
       const formData = props.dashboardId
         ? {
             ...props.form_data,
             dashboardId: props.dashboardId,
           }
         : props.form_data;
-      const datasetId = props.datasource.id;
-
-      updateHistory(
+      const payload = { ...formData };
+      const longUrl = getExploreLongUrl(
         formData,
-        datasetId,
-        isReplace,
-        props.standalone,
+        props.standalone ? URL_PARAMS.standalone.name : null,
+        false,
+        {},
         props.force,
-        title,
       );
+
+      try {
+        if (isReplace) {
+          window.history.replaceState(payload, title, longUrl);
+        } else {
+          window.history.pushState(payload, title, longUrl);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          'Failed at altering browser history',
+          payload,
+          title,
+          longUrl,
+        );
+      }
     },
-    [
-      props.dashboardId,
-      props.form_data,
-      props.datasource.id,
-      props.standalone,
-      props.force,
-    ],
+    [props.form_data, props.standalone, props.force],
   );
 
   const handlePopstate = useCallback(() => {
@@ -480,6 +448,7 @@ function ExploreViewContainer(props) {
         {...props}
         errorMessage={renderErrorMessage()}
         refreshOverlayVisible={chartIsStale}
+        addHistory={addHistory}
         onQuery={onQuery}
       />
     );

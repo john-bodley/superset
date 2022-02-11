@@ -55,10 +55,6 @@ export const URL_PARAMS = {
     name: 'show_filters',
     type: 'boolean',
   },
-  formDataKey: {
-    name: 'form_data_key',
-    type: 'string',
-  },
   sliceId: {
     name: 'slice_id',
     type: 'string',

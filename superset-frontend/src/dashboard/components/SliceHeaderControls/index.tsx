@@ -27,6 +27,8 @@ import {
 import { Menu, NoAnimationDropdown } from 'src/common/components';
 import ShareMenuItems from 'src/dashboard/components/menu/ShareMenuItems';
 import downloadAsImage from 'src/utils/downloadAsImage';
+import getDashboardUrl from 'src/dashboard/util/getDashboardUrl';
+import { getActiveFilters } from 'src/dashboard/util/activeDashboardFilters';
 import { FeatureFlag, isFeatureEnabled } from 'src/featureFlags';
 import CrossFilterScopingModal from 'src/dashboard/components/CrossFilterScopingModal/CrossFilterScopingModal';
 import Icons from 'src/components/Icons';
@@ -97,8 +99,8 @@ export interface SliceHeaderControlsProps {
   isExpanded?: boolean;
   updatedDttm: number | null;
   isFullSize?: boolean;
-  formData: { slice_id: number; datasource: string };
-  onExploreChart: () => void;
+  formData: object;
+  exploreUrl?: string;
 
   forceRefresh: (sliceId: number, dashboardId: number) => void;
   logExploreChart?: (sliceId: number) => void;
@@ -213,13 +215,13 @@ class SliceHeaderControls extends React.PureComponent<
     const {
       slice,
       isFullSize,
+      componentId,
       cachedDttm = [],
       updatedDttm = null,
       addSuccessToast = () => {},
       addDangerToast = () => {},
       supersetCanShare = false,
       isCached = [],
-      formData,
     } = this.props;
     const crossFilterItems = getChartMetadataRegistry().items;
     const isTable = slice.viz_type === 'table';
@@ -281,11 +283,10 @@ class SliceHeaderControls extends React.PureComponent<
         )}
 
         {this.props.supersetCanExplore && (
-          <Menu.Item
-            key={MENU_KEYS.EXPLORE_CHART}
-            onClick={this.props.onExploreChart}
-          >
-            {t('View chart in Explore')}
+          <Menu.Item key={MENU_KEYS.EXPLORE_CHART}>
+            <a href={this.props.exploreUrl} rel="noopener noreferrer">
+              {t('View chart in Explore')}
+            </a>
           </Menu.Item>
         )}
 
@@ -308,13 +309,17 @@ class SliceHeaderControls extends React.PureComponent<
 
         {supersetCanShare && (
           <ShareMenuItems
+            url={getDashboardUrl({
+              pathname: window.location.pathname,
+              filters: getActiveFilters(),
+              hash: componentId,
+            })}
             copyMenuItemTitle={t('Copy chart URL')}
             emailMenuItemTitle={t('Share chart by email')}
             emailSubject={t('Superset chart')}
             emailBody={t('Check out this chart: ')}
             addSuccessToast={addSuccessToast}
             addDangerToast={addDangerToast}
-            formData={formData}
           />
         )}
 

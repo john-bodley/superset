@@ -19,10 +19,13 @@
 import cx from 'classnames';
 import React from 'react';
 import PropTypes from 'prop-types';
-import { styled, t, logging } from '@superset-ui/core';
+import { styled } from '@superset-ui/core';
 import { isEqual } from 'lodash';
 
-import { exportChart, mountExploreUrl } from 'src/explore/exploreUtils';
+import {
+  exportChart,
+  getExploreUrlFromDashboard,
+} from 'src/explore/exploreUtils';
 import ChartContainer from 'src/chart/ChartContainer';
 import {
   LOG_ACTIONS_CHANGE_DASHBOARD_FILTER,
@@ -32,8 +35,6 @@ import {
 } from 'src/logger/LogUtils';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { FILTER_BOX_MIGRATION_STATES } from 'src/explore/constants';
-import { postFormData } from 'src/explore/exploreUtils/formData';
-import { URL_PARAMS } from 'src/constants';
 
 import SliceHeader from '../SliceHeader';
 import MissingChart from '../MissingChart';
@@ -240,23 +241,7 @@ export default class Chart extends React.Component {
     });
   };
 
-  onExploreChart = async () => {
-    try {
-      const key = await postFormData(
-        this.props.datasource.id,
-        this.props.formData,
-        this.props.slice.slice_id,
-      );
-      const url = mountExploreUrl(null, {
-        [URL_PARAMS.formDataKey.name]: key,
-        [URL_PARAMS.sliceId.name]: this.props.slice.slice_id,
-      });
-      window.open(url, '_blank', 'noreferrer');
-    } catch (error) {
-      logging.error(error);
-      this.props.addDangerToast(t('An error occurred while opening Explore'));
-    }
-  };
+  getChartUrl = () => getExploreUrlFromDashboard(this.props.formData);
 
   exportCSV(isFullCSV = false) {
     this.props.logEvent(LOG_ACTIONS_EXPORT_CSV_DASHBOARD_CHART, {
@@ -365,7 +350,7 @@ export default class Chart extends React.Component {
           editMode={editMode}
           annotationQuery={chart.annotationQuery}
           logExploreChart={this.logExploreChart}
-          onExploreChart={this.onExploreChart}
+          exploreUrl={this.getChartUrl()}
           exportCSV={this.exportCSV}
           exportFullCSV={this.exportFullCSV}
           updateSliceName={updateSliceName}
