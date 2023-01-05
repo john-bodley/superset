@@ -99,7 +99,7 @@ from superset.utils.hashing import md5_sha_from_str
 
 if TYPE_CHECKING:
     from superset.common.query_context_factory import QueryContextFactory
-    from superset.connectors.base.models import BaseDatasource
+    from superset.connectors.sqla.models import SqlaTable
 
 config = app.config
 stats_logger = config["STATS_LOGGER"]
@@ -132,7 +132,7 @@ class BaseViz:  # pylint: disable=too-many-public-methods
 
     def __init__(
         self,
-        datasource: "BaseDatasource",
+        datasource: Union["AnnotationDatasource", "SqlaTable"],
         form_data: Dict[str, Any],
         force: bool = False,
         force_cached: bool = False,
@@ -251,6 +251,7 @@ class BaseViz:  # pylint: disable=too-many-public-methods
         return df
 
     def get_samples(self) -> Dict[str, Any]:
+        assert isinstance(self.datasource, SqlaTable)
         query_obj = self.query_obj()
         query_obj.update(
             {
@@ -281,7 +282,7 @@ class BaseViz:  # pylint: disable=too-many-public-methods
         self.error_msg = ""
 
         timestamp_format = None
-        if self.datasource.type == "table":
+        if isinstance(self.datasource, SqlaTable):
             granularity_col = self.datasource.get_column(query_obj["granularity"])
             if granularity_col:
                 timestamp_format = granularity_col.python_date_format
@@ -306,7 +307,7 @@ class BaseViz:  # pylint: disable=too-many-public-methods
                     [
                         DateColumn.get_legacy_time_column(
                             timestamp_format=timestamp_format,
-                            offset=self.datasource.offset,
+                            offset=self.datasource.offset if isinstance(self.datasource, SqlaTable) else 0,
                             time_shift=self.form_data.get("time_shift"),
                         )
                     ]
@@ -428,12 +429,11 @@ class BaseViz:  # pylint: disable=too-many-public-methods
     def cache_timeout(self) -> int:
         if self.form_data.get("cache_timeout") is not None:
             return int(self.form_data["cache_timeout"])
+        if isinstance(self.datasource, AnnotationDatasource):
+            return 0
         if self.datasource.cache_timeout is not None:
             return self.datasource.cache_timeout
-        if (
-            hasattr(self.datasource, "database")
-            and self.datasource.database.cache_timeout
-        ) is not None:
+        if self.datasource.database.cache_timeout is not None:
             return self.datasource.database.cache_timeout
         if config["DATA_CACHE_CONFIG"].get("CACHE_DEFAULT_TIMEOUT") is not None:
             return config["DATA_CACHE_CONFIG"]["CACHE_DEFAULT_TIMEOUT"]
@@ -475,12 +475,13 @@ class BaseViz:  # pylint: disable=too-many-public-methods
     def get_payload(self, query_obj: Optional[QueryObjectDict] = None) -> VizPayload:
         """Returns a payload of metadata and data"""
 
-        try:
-            self.run_extra_queries()
-        except SupersetSecurityException as ex:
-            error = dataclasses.asdict(ex.error)
-            self.errors.append(error)
-            self.status = QueryStatus.FAILED
+        if isinstance(self.datasource, SqlaTable):
+            try:
+                self.run_extra_queries()
+            except SupersetSecurityException as ex:
+                error = dataclasses.asdict(ex.error)
+                self.errors.append(error)
+                self.status = QueryStatus.FAILED
 
         payload = self.get_df_payload(query_obj)
 
@@ -497,6 +498,7 @@ class BaseViz:  # pylint: disable=too-many-public-methods
         columns = set(self.datasource.column_names)
         applied_template_filters = self.applied_template_filters or []
         applied_time_extras = self.form_data.get("applied_time_extras", {})
+
         applied_time_columns, rejected_time_columns = utils.get_time_filter_status(
             self.datasource, applied_time_extras
         )
@@ -1143,10 +1145,7 @@ class CalHeatmapViz(BaseViz):
             "year": "P1Y",
         }
         time_grain = mapping[self.form_data.get("subdomain_granularity", "min")]
-        if self.datasource.type == "druid":
-            query_obj["granularity"] = time_grain
-        else:
-            query_obj["extras"]["time_grain_sqla"] = time_grain
+        query_obj["extras"]["time_grain_sqla"] = time_grain
         return query_obj
 
 
@@ -2146,28 +2145,31 @@ class FilterBoxViz(BaseViz):
         return {}
 
     def run_extra_queries(self) -> None:
-        query_obj = super().query_obj()
-        filters = self.form_data.get("filter_configs") or []
-        query_obj["row_limit"] = self.filter_row_limit
         self.dataframes = {}  # pylint: disable=attribute-defined-outside-init
-        for flt in filters:
-            col = flt.get("column")
-            if not col:
-                raise QueryObjectValidationError(
-                    _("Invalid filter configuration, please select a column")
-                )
-            query_obj["groupby"] = [col]
-            metric = flt.get("metric")
-            query_obj["metrics"] = [metric] if metric else []
-            asc = flt.get("asc")
-            if metric and asc is not None:
-                query_obj["orderby"] = [(metric, asc)]
-            self.get_query_context_factory().create(
-                datasource={"id": self.datasource.id, "type": self.datasource.type},
-                queries=[query_obj],
-            ).raise_for_access()
-            df = self.get_df_payload(query_obj=query_obj).get("df")
-            self.dataframes[col] = df
+
+        if isinstance(self.datasource, SqlaTable):
+            query_obj = super().query_obj()
+            filters = self.form_data.get("filter_configs") or []
+            query_obj["row_limit"] = self.filter_row_limit
+
+            for flt in filters:
+                col = flt.get("column")
+                if not col:
+                    raise QueryObjectValidationError(
+                        _("Invalid filter configuration, please select a column")
+                    )
+                query_obj["groupby"] = [col]
+                metric = flt.get("metric")
+                query_obj["metrics"] = [metric] if metric else []
+                asc = flt.get("asc")
+                if metric and asc is not None:
+                    query_obj["orderby"] = [(metric, asc)]
+                self.get_query_context_factory().create(
+                    datasource={"id": self.datasource.id, "type": self.datasource.type},
+                    queries=[query_obj],
+                ).raise_for_access()
+                df = self.get_df_payload(query_obj=query_obj).get("df")
+                self.dataframes[col] = df
 
     def get_data(self, df: pd.DataFrame) -> VizData:
         filters = self.form_data.get("filter_configs") or []

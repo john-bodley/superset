@@ -268,10 +268,6 @@ class Query(
         return f"{self.id}__{self.type}"
 
     @property
-    def is_rls_supported(self) -> bool:
-        return False
-
-    @property
     def cache_timeout(self) -> int:
         return 0
 

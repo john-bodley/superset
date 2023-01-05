@@ -700,10 +700,6 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         raise NotImplementedError()
 
     @property
-    def is_rls_supported(self) -> bool:
-        raise NotImplementedError()
-
-    @property
     def cache_timeout(self) -> int:
         raise NotImplementedError()
 
@@ -1326,7 +1322,7 @@ class ExploreMixin:  # pylint: disable=too-many-public-methods
         col = sa.column(label, type_=col_type)
         return self.make_sqla_column_compatible(col, label)
 
-    def get_sqla_query(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements,unused-argument
+    def get_sqla_query(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
         self,
         apply_fetch_values_predicate: bool = False,
         columns: Optional[List[Column]] = None,
