@@ -147,8 +147,13 @@ def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too
         key = str(filter_box.id)
         params = json.loads(filter_box.params or "{}")
 
+        filter_config_by_column = {
+            config["column"]: config
+            for config in params.get("filter_configs") or []
+        }
+
         for field, filter_scope in filter_scope_by_key_and_field[key].items():
-            default = get_default(default_filters, params, key, field)
+            default = default_filters.get(key, {}).get(field)
 
             fltr: Dict[str, Any] = {
                 "cascadeParentIds": [],
@@ -173,6 +178,9 @@ def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too
                     }
                 )
 
+                if not default:
+                    default = params.get("granularity_sqla")
+
                 if default:
                     fltr["defaultDataMask"] = {
                         "extraFormData": {"granularity_sqla": default},
@@ -186,6 +194,9 @@ def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too
                         "targets": [{"datasetId": filter_box.datasource_id}],
                     }
                 )
+
+                if not default:
+                    default = params.get("time_grain_sqla")
 
                 if default:
                     fltr["defaultDataMask"] = {
@@ -201,77 +212,79 @@ def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too
                     }
                 )
 
-                if default:
+                if not default:
+                    default = params.get("time_range")
+
+                if default != "No filter":
                     fltr["defaultDataMask"] = {
                         "extraFormData": {"time_range": default},
                         "filterState": {"value": default},
                     }
-            else:
-                for config in params.get("filter_configs") or []:
-                    if config["column"] == field:
-                        fltr.update(
+            elif field in filter_config_by_column:
+                config = filter_config_by_column[field]
+
+                fltr.update(
+                    {
+                        "controlValues": {
+                            "defaultToFirstItem": False,
+                            "enableEmptyFilter": not config.get("clearable", True),
+                            "inverseSelection": False,
+                            "multiSelect": config.get("multiple", False),
+                            "searchAllOptions": config.get("searchAllOptions", False),
+                        },
+                        "filterType": "filter_select",
+                        "name": config.get("label") or field,
+                        "targets": [
                             {
-                                "controlValues": {
-                                    "defaultToFirstItem": False,
-                                    "enableEmptyFilter": not config["clearable"],
-                                    "inverseSelection": False,
-                                    "multiSelect": config["multiple"],
-                                    "searchAllOptions": config["searchAllOptions"],
-                                },
-                                "filterType": "filter_select",
-                                "name": config.get("label") or field,
-                                "targets": [
-                                    {
-                                        "column": {"name": field},
-                                        "datasetId": filter_box.datasource_id,
-                                    },
-                                ],
-                            }
-                        )
+                                "column": {"name": field},
+                                "datasetId": filter_box.datasource_id,
+                            },
+                        ],
+                    }
+                )
 
-                        if "metric" in config:
-                            fltr["sortMetric"] = config["metric"]
-                            fltr["controlValues"]["sortAscending"] = config["asc"]
+                if "metric" in config:
+                    fltr["sortMetric"] = config["metric"]
+                    fltr["controlValues"]["sortAscending"] = config["asc"]
 
-                        if params.get("adhoc_filters"):
-                            fltr["adhoc_filters"] = params["adhoc_filters"]
+                if params.get("adhoc_filters"):
+                    fltr["adhoc_filters"] = params["adhoc_filters"]
 
-                        # Pre-filter available values based on time range/column.
-                        time_range = get_default(
-                            default_filters,
-                            params,
-                            key,
-                            "__time_range",
-                        )
+                # Pre-filter available values based on time column/range defaults
+                # defined at the chart rather than dashboard level. This may be an
+                # inconsistency quirk with Superset but it ensures parity.
+                time_range = params.get("time_range")
 
-                        if time_range:
-                            fltr.update(
+                if time_range and time_range != "No filter":
+                    fltr.update(
+                        {
+                            "time_range": time_range,
+                            "granularity_sqla": params.get("granularity_sqla"),
+                        }
+                    )
+
+                if not default:
+                    default = config.get("defaultValue")
+
+                    if default:
+                        if config["multiple"]:
+                            default = default.split(";")
+                        else:
+                            default = [default]
+
+                if default:
+                    fltr["defaultDataMask"] = {
+                        "extraFormData": {
+                            "filters": [
                                 {
-                                    "time_range": time_range,
-                                    "granularity_sqla": get_default(
-                                        default_filters,
-                                        params,
-                                        key,
-                                        "__time_col",
-                                    ),
+                                    "col": field,
+                                    "op": "IN",
+                                    "val": default,
                                 }
-                            )
-
-                        if default:
-                            fltr["defaultDataMask"] = {
-                                "extraFormData": {
-                                    "filters": [
-                                        {
-                                            "col": field,
-                                            "op": "IN",
-                                            "val": default,
-                                        }
-                                    ],
-                                },
-                                "filterState": {"value": default},
-                            }
-
-                        break
+                            ],
+                        },
+                        "filterState": {"value": default},
+                    }
 
             if "filterType" in fltr:
                 filter_by_key_and_field[key][field] = fltr
@@ -318,54 +331,3 @@ def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too
         ],
         key=lambda fltr: fltr["filterType"],
     )
-
-
-def get_default(
-    default_filters: Dict[str, Dict[str, Any]],
-    params: Dict[str, Any],
-    key: str,
-    field: str,
-) -> Optional[Any]:
-    """
-    Get the default value associated with the key/field pair.
-
-    Precedence is first given to the dashboard level default before falling back to the
-    filter-box level default.
-
-    Note irrespective of whether the filter supports multiple values, the non-temporaal
-    dashboard level default filters are already encoded as a list.
-
-    :param dafault_filters: The dashboard filter defaults
-    :param params: The filter-box chart parameters
-    :param key: The filter-box key
-    :param field: The filter field
-    :returns: The default value(s)
-    """
-
-    default = default_filters.get(key, {}).get(field)
-
-    if field == "__time_col" and params.get("show_sqla_time_column"):
-        return default or params.get("granularity_sqla")
-
-    if field == "__time_grain" and params.get("show_sqla_time_granularity"):
-        return default or params.get("time_grain_sqla")
-
-    if field == "__time_range" and params.get("date_filter"):
-        default = default or params.get("time_range")
-
-        if default != "No filter":
-            return default
-
-    for config in params.get("filter_configs") or []:
-        if config["column"] == field:
-            if default:
-                return default
-
-            default = config.get("defaultValue")
-
-            if default:
-                return default.split(";") if config["multiple"] else [default]
-
-            break
-
-    return None

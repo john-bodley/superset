@@ -136,6 +136,22 @@ class DashboardJSONMetadataSchema(Schema):
     filter_bar_orientation = fields.Str(allow_none=True)
     native_filter_migration = fields.Dict()
 
+    @pre_load
+    def remove_show_native_filters(  # pylint: disable=unused-argument, no-self-use
+        self,
+        data: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        Remove ``show_native_filters`` from the JSON metadata.
+
+        This field was removed in https://github.com/apache/superset/pull/23228, but might
+        be present in old exports.
+        """
+        if "show_native_filters" in data:
+            del data["show_native_filters"]
+
+        return data
 
 class UserSchema(Schema):
     id = fields.Int()
