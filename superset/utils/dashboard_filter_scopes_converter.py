@@ -17,7 +17,9 @@
 import json
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from shortid import ShortId
 
 from superset.models.slice import Slice
 
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def convert_filter_scopes(
-    json_metadata: Dict[Any, Any], filters: List[Slice]
+    json_metadata: Dict[Any, Any], filter_boxes: List[Slice]
 ) -> Dict[int, Dict[str, Dict[str, Any]]]:
     filter_scopes = {}
     immuned_by_id: List[int] = json_metadata.get("filter_immune_slices") or []
@@ -51,10 +53,10 @@ def convert_filter_scopes(
         else:
             logging.info("slice [%i] has invalid field: %s", filter_id, filter_field)
 
-    for filter_slice in filters:
+    for filter_box in filter_boxes:
         filter_fields: Dict[str, Dict[str, Any]] = {}
-        filter_id = filter_slice.id
-        slice_params = json.loads(filter_slice.params or "{}")
+        filter_id = filter_box.id
+        slice_params = json.loads(filter_box.params or "{}")
         configs = slice_params.get("filter_configs") or []
 
         if slice_params.get("date_filter"):
@@ -88,3 +90,282 @@ def copy_filter_scopes(
                     if int(slice_id) in old_to_new_slc_id_dict
                 ]
     return new_filter_scopes
+
+
+def convert_filter_scopes_to_native_filters(  # pylint: disable=invalid-name,too-many-branches,too-many-locals,too-many-nested-blocks
+    json_metadata: Dict[str, Any],
+    position_json: Dict[str, Any],
+    filter_boxes: List[Slice],
+) -> List[Dict[str, Any]]:
+    """
+    Convert the legacy filter scopes et al. to the native filter configuration.
+
+    Dashboard filter scopes are implicitly defined where an undefined scope implies
+    no immunity, i.e., they apply to all applicable charts. The `convert_filter_scopes`
+    method provides an explicit definition by extracting the underlying filter-box
+    configurations.
+
+    Hierarchical legacy filters are defined via non-exclusion of peer or children
+    filter-box charts whereas native hierarchical filters are defined via explicit
+    parental relationships, i.e., the inverse.
+
+    :param json_metata: The dashboard metadata
+    :param position_json: The dashboard layout
+    :param filter_boxes: The filter-box charts associated with the dashboard
+    :returns: The native filter configuration
+    :see: convert_filter_scopes
+    """
+
+    shortid = ShortId()
+    default_filters = json.loads(json_metadata.get("default_filters") or "{}")
+    filter_scopes = json_metadata.get("filter_scopes", {})
+    filter_box_ids = {filter_box.id for filter_box in filter_boxes}
+
+    filter_scope_by_key_and_field: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(
+        dict
+    )
+
+    filter_by_key_and_field: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(dict)
+
+    # Dense representation of filter scopes, falling back to chart level filter configs
+    # if the respective filter scope is not defined at the dashboard level.
+    for filter_box in filter_boxes:
+        key = str(filter_box.id)
+
+        filter_scope_by_key_and_field[key] = {
+            **(
+                convert_filter_scopes(
+                    json_metadata,
+                    filter_boxes=[filter_box],
+                ).get(filter_box.id, {})
+            ),
+            **(filter_scopes.get(key, {})),
+        }
+
+    # Contruct the native filters.
+    for filter_box in filter_boxes:
+        key = str(filter_box.id)
+        params = json.loads(filter_box.params or "{}")
+
+        for field, filter_scope in filter_scope_by_key_and_field[key].items():
+            default = get_default(default_filters, params, key, field)
+
+            fltr: Dict[str, Any] = {
+                "cascadeParentIds": [],
+                "id": f"NATIVE_FILTER-{shortid.generate()}",
+                "scope": {
+                    "rootPath": filter_scope["scope"],
+                    "excluded": [
+                        id_
+                        for id_ in filter_scope["immune"]
+                        if id_ not in filter_box_ids
+                    ],
+                },
+                "type": "NATIVE_FILTER",
+            }
+
+            if field == "__time_col" and params.get("show_sqla_time_column"):
+                fltr.update(
+                    {
+                        "filterType": "filter_timecolumn",
+                        "name": "Time Column",
+                        "targets": [{"datasetId": filter_box.datasource_id}],
+                    }
+                )
+
+                if default:
+                    fltr["defaultDataMask"] = {
+                        "extraFormData": {"granularity_sqla": default},
+                        "filterState": {"value": [default]},
+                    }
+            elif field == "__time_grain" and params.get("show_sqla_time_granularity"):
+                fltr.update(
+                    {
+                        "filterType": "filter_timegrain",
+                        "name": "Time Grain",
+                        "targets": [{"datasetId": filter_box.datasource_id}],
+                    }
+                )
+
+                if default:
+                    fltr["defaultDataMask"] = {
+                        "extraFormData": {"time_grain_sqla": default},
+                        "filterState": {"value": [default]},
+                    }
+            elif field == "__time_range" and params.get("date_filter"):
+                fltr.update(
+                    {
+                        "filterType": "filter_time",
+                        "name": "Time Range",
+                        "targets": [{}],
+                    }
+                )
+
+                if default:
+                    fltr["defaultDataMask"] = {
+                        "extraFormData": {"time_range": default},
+                        "filterState": {"value": default},
+                    }
+            else:
+                for config in params.get("filter_configs") or []:
+                    if config["column"] == field:
+                        fltr.update(
+                            {
+                                "controlValues": {
+                                    "defaultToFirstItem": False,
+                                    "enableEmptyFilter": not config["clearable"],
+                                    "inverseSelection": False,
+                                    "multiSelect": config["multiple"],
+                                    "searchAllOptions": config["searchAllOptions"],
+                                },
+                                "filterType": "filter_select",
+                                "name": config.get("label") or field,
+                                "targets": [
+                                    {
+                                        "column": {"name": field},
+                                        "datasetId": filter_box.datasource_id,
+                                    },
+                                ],
+                            }
+                        )
+
+                        if "metric" in config:
+                            fltr["sortMetric"] = config["metric"]
+                            fltr["controlValues"]["sortAscending"] = config["asc"]
+
+                        if params.get("adhoc_filters"):
+                            fltr["adhoc_filters"] = params["adhoc_filters"]
+
+                        # Pre-filter available values based on time range/column.
+                        time_range = get_default(
+                            default_filters,
+                            params,
+                            key,
+                            "__time_range",
+                        )
+
+                        if time_range:
+                            fltr.update(
+                                {
+                                    "time_range": time_range,
+                                    "granularity_sqla": get_default(
+                                        default_filters,
+                                        params,
+                                        key,
+                                        "__time_col",
+                                    ),
+                                }
+                            )
+
+                        if default:
+                            fltr["defaultDataMask"] = {
+                                "extraFormData": {
+                                    "filters": [
+                                        {
+                                            "col": field,
+                                            "op": "IN",
+                                            "val": default,
+                                        }
+                                    ],
+                                },
+                                "filterState": {"value": default},
+                            }
+
+                        break
+
+            if "filterType" in fltr:
+                filter_by_key_and_field[key][field] = fltr
+
+    # Ancestors of filter-box charts.
+    ancestors_by_id = defaultdict(set)
+
+    for filter_box in filter_boxes:
+        for value in position_json.values():
+            if (
+                isinstance(value, dict)
+                and value["type"] == "CHART"
+                and value["meta"]["chartId"] == filter_box.id
+                and value["parents"]  # Misnomer as this the the complete ancestry.
+            ):
+                ancestors_by_id[filter_box.id] = set(value["parents"])
+
+    # Wire up the hierarchical filters.
+    for this in filter_boxes:
+        for other in filter_boxes:
+            if (
+                this != other
+                and any(  # Immunity is at the chart rather than field level.
+                    this.id not in filter_scope["immune"]
+                    and set(filter_scope["scope"]) <= ancestors_by_id[this.id]
+                    for filter_scope in filter_scope_by_key_and_field[
+                        str(other.id)
+                    ].values()
+                )
+            ):
+                for child in filter_by_key_and_field[str(this.id)].values():
+                    for parent in filter_by_key_and_field[str(other.id)].values():
+                        if (
+                            parent["filterType"] == "filter_select"
+                            and parent["id"] not in child["cascadeParentIds"]
+                        ):
+                            child["cascadeParentIds"].append(parent["id"])
+
+    return sorted(
+        [
+            fltr
+            for key in filter_by_key_and_field
+            for fltr in filter_by_key_and_field[key].values()
+        ],
+        key=lambda fltr: fltr["filterType"],
+    )
+
+
+def get_default(
+    default_filters: Dict[str, Dict[str, Any]],
+    params: Dict[str, Any],
+    key: str,
+    field: str,
+) -> Optional[Any]:
+    """
+    Get the default value associated with the key/field pair.
+
+    Precedence is first given to the dashboard level default before falling back to the
+    filter-box level default.
+
+    Note irrespective of whether the filter supports multiple values, the non-temporaal
+    dashboard level default filters are already encoded as a list.
+
+    :param dafault_filters: The dashboard filter defaults
+    :param params: The filter-box chart parameters
+    :param key: The filter-box key
+    :param field: The filter field
+    :returns: The default value(s)
+    """
+
+    default = default_filters.get(key, {}).get(field)
+
+    if field == "__time_col" and params.get("show_sqla_time_column"):
+        return default or params.get("granularity_sqla")
+
+    if field == "__time_grain" and params.get("show_sqla_time_granularity"):
+        return default or params.get("time_grain_sqla")
+
+    if field == "__time_range" and params.get("date_filter"):
+        default = default or params.get("time_range")
+
+        if default != "No filter":
+            return default
+
+    for config in params.get("filter_configs") or []:
+        if config["column"] == field:
+            if default:
+                return default
+
+            default = config.get("defaultValue")
+
+            if default:
+                return default.split(";") if config["multiple"] else [default]
+
+            break
+
+    return None

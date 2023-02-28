@@ -134,6 +134,7 @@ class DashboardJSONMetadataSchema(Schema):
     import_time = fields.Integer()
     remote_id = fields.Integer()
     filter_bar_orientation = fields.Str(allow_none=True)
+    native_filter_migration = fields.Dict()
 
 
 class UserSchema(Schema):

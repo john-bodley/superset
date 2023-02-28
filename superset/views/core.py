@@ -1271,7 +1271,11 @@ class Superset(BaseSupersetView):  # pylint: disable=too-many-public-methods
 
             # update chartId of layout entities
             for value in data["positions"].values():
-                if isinstance(value, dict) and value.get("meta", {}).get("chartId"):
+                if (
+                    isinstance(value, dict)
+                    and value.get("type") == "CHART"
+                    and value.get("meta", {}).get("chartId")
+                ):
                     old_id = value["meta"]["chartId"]
                     new_id = old_to_new_slice_ids.get(old_id)
                     value["meta"]["chartId"] = new_id
