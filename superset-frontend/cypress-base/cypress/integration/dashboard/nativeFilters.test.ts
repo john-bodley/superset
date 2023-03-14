@@ -574,7 +574,7 @@ describe('Native filters', () => {
         },
       );
       saveNativeFilterSettings([SAMPLE_CHART]);
-      enterNativeFilterEditModal();
+      enterNativeFilterEditModal(false);
       cy.get(nativeFilters.modal.tabsList.removeTab)
         .should('be.visible')
         .first()
@@ -810,7 +810,7 @@ describe('Native filters', () => {
         force: true,
       });
       cancelNativeFilterSettings();
-      enterNativeFilterEditModal();
+      enterNativeFilterEditModal(false);
       cy.get(nativeFilters.filtersList.removeIcon).first().click();
       cy.contains('You have removed this filter.').should('be.visible');
     });
@@ -853,7 +853,7 @@ describe('Native filters', () => {
         .contains(testItems.filterDefaultValue)
         .should('be.visible');
       validateFilterNameOnDashboard(testItems.topTenChart.filterColumn);
-      enterNativeFilterEditModal();
+      enterNativeFilterEditModal(false);
       deleteNativeFilter();
       saveNativeFilterSettings([SAMPLE_CHART]);
       cy.get(dataTestChartName(testItems.topTenChart.name)).within(() => {
