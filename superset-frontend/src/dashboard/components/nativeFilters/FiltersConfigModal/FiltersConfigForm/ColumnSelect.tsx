@@ -19,6 +19,7 @@
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
 import { Column, ensureIsArray, t } from '@superset-ui/core';
 import { useChangeEffect } from 'src/hooks/useChangeEffect';
+import rison from 'rison';
 import { Select, FormInstance } from 'src/components';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import { getClientErrorObject } from 'src/utils/getClientErrorObject';
@@ -89,7 +90,13 @@ export function ColumnSelect({
     }
     if (datasetId != null) {
       cachedSupersetGet({
-        endpoint: `/api/v1/dataset/${datasetId}`,
+        endpoint: `/api/v1/dataset/${datasetId}?q=${rison.encode({
+          columns: [
+            'columns.column_name',
+            'columns.is_dttm',
+            'columns.type_generic',
+          ],
+        })}`,
       }).then(
         ({ json: { result } }) => {
           const lookupValue = Array.isArray(value) ? value : [value];
