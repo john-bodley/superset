@@ -28,6 +28,7 @@ import {
   NumberFormatter,
   TimeFormatter,
   AxisType,
+  SupersetTheme,
 } from '@superset-ui/core';
 import { format, LegendComponentOption, SeriesOption } from 'echarts';
 import {
@@ -231,6 +232,7 @@ export function getLegendProps(
   type: LegendType,
   orientation: LegendOrientation,
   show: boolean,
+  theme: SupersetTheme,
   zoomable = false,
 ): LegendComponentOption | LegendComponentOption[] {
   const legend: LegendComponentOption | LegendComponentOption[] = {
@@ -241,6 +243,13 @@ export function getLegendProps(
       : 'vertical',
     show,
     type,
+    selector: ['all', 'inverse'],
+    selectorLabel: {
+      fontFamily: theme.typography.families.sansSerif,
+      fontSize: theme.typography.sizes.s,
+      color: theme.colors.grayscale.base,
+      borderColor: theme.colors.grayscale.base,
+    },
   };
   switch (orientation) {
     case LegendOrientation.Left:
