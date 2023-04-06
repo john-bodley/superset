@@ -870,5 +870,5 @@ export const reportSelector = (
   if (resourceId) {
     return state.reports[resourceType]?.[resourceId];
   }
-  return {};
+  return null;
 };
