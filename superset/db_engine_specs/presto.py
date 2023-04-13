@@ -544,8 +544,8 @@ class PrestoBaseEngineSpec(BaseEngineSpec, metaclass=ABCMeta):
         return column_names, cls._latest_partition_from_df(
             df=database.get_df(
                 sql=cls._partition_query(
-                    schema,
                     table_name,
+                    schema,
                     indexes,
                     database,
                     limit=1,
@@ -601,13 +601,8 @@ class PrestoBaseEngineSpec(BaseEngineSpec, metaclass=ABCMeta):
                 field_to_return = field
 
         sql = cls._partition_query(
-<<<<<<< HEAD
-            schema,
-            table_name,
-=======
             table_name,
             schema,
->>>>>>> c590a88924 (chore(presto): Expose schema and indexes to _partition_query method)
             indexes,
             database,
             limit=1,
@@ -1190,16 +1185,12 @@ class PrestoEngineSpec(PrestoBaseEngineSpec):
                 "cols": sorted(indexes[0].get("column_names", [])),
                 "latest": dict(zip(col_names, latest_parts)),
                 "partitionQuery": cls._partition_query(
-                    schema=schema_name,
                     table_name=(
                         f"{schema_name}.{table_name}"
                         if schema_name and "." not in table_name
                         else table_name
                     ),
-<<<<<<< HEAD
-=======
                     schema=schema_name,
->>>>>>> c590a88924 (chore(presto): Expose schema and indexes to _partition_query method)
                     indexes=indexes,
                     database=database,
                 ),

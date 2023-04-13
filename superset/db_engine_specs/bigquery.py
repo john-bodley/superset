@@ -443,7 +443,7 @@ class BigQueryEngineSpec(BaseEngineSpec):  # pylint: disable=too-many-public-met
         return costs
 
     @classmethod
-    def get_catalog_names(
+    def get_catalog_names(  # pylint: disable=unused-argument
         cls,
         database: "Database",
         inspector: Inspector,
