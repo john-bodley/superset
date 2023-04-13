@@ -398,8 +398,8 @@ class PrestoBaseEngineSpec(BaseEngineSpec, metaclass=ABCMeta):
     @classmethod
     def _partition_query(  # pylint: disable=too-many-arguments,too-many-locals,unused-argument
         cls,
-        schema: Optional[str],
         table_name: str,
+        schema: Optional[str],
         indexes: List[Dict[str, Any]],
         database: Database,
         limit: int = 0,
@@ -409,8 +409,11 @@ class PrestoBaseEngineSpec(BaseEngineSpec, metaclass=ABCMeta):
         """
         Return a partition query.
 
-        :param schema: the schema name
+        Note the unused arguments are exposed for sub-classing purposes where custom
+        integrations may require the schema, indexes, etc. to build the paritiion query.
+
         :param table_name: the name of the table to get partitions from
+        :param schema: the schema name
         :param indexes: the indexes associated with the table
         :param database: the database the query will be run against
         :param limit: the number of partitions to be returned
@@ -598,8 +601,13 @@ class PrestoBaseEngineSpec(BaseEngineSpec, metaclass=ABCMeta):
                 field_to_return = field
 
         sql = cls._partition_query(
+<<<<<<< HEAD
             schema,
             table_name,
+=======
+            table_name,
+            schema,
+>>>>>>> c590a88924 (chore(presto): Expose schema and indexes to _partition_query method)
             indexes,
             database,
             limit=1,
@@ -1188,6 +1196,10 @@ class PrestoEngineSpec(PrestoBaseEngineSpec):
                         if schema_name and "." not in table_name
                         else table_name
                     ),
+<<<<<<< HEAD
+=======
+                    schema=schema_name,
+>>>>>>> c590a88924 (chore(presto): Expose schema and indexes to _partition_query method)
                     indexes=indexes,
                     database=database,
                 ),

@@ -444,8 +444,8 @@ class HiveEngineSpec(PrestoEngineSpec):
     @classmethod
     def _partition_query(  # pylint: disable=too-many-arguments
         cls,
-        schema: Optional[str],
         table_name: str,
+        schema: Optional[str],
         indexes: List[Dict[str, Any]],
         database: "Database",
         limit: int = 0,

@@ -79,12 +79,12 @@ class TrinoEngineSpec(PrestoBaseEngineSpec):
                 ),
                 "latest": dict(zip(col_names, latest_parts)),
                 "partitionQuery": cls._partition_query(
-                    schema=schema_name,
                     table_name=(
                         f"{schema_name}.{table_name}"
                         if schema_name and "." not in table_name
                         else table_name
                     ),
+                    schema=schema_name,
                     indexes=indexes,
                     database=database,
                 ),
