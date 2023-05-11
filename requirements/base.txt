@@ -189,7 +189,7 @@ ordered-set==4.1.0
     # via flask-limiter
 packaging==21.3
     # via
-    #   bleach
+    #   apache-superset
     #   deprecation
     #   limits
 pandas==1.5.3
