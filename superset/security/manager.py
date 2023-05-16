@@ -2046,10 +2046,7 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
         from superset.dashboards.commands.exceptions import DashboardAccessDeniedError
 
         def has_rbac_access() -> bool:
-            if not is_feature_enabled("DASHBOARD_RBAC") or not dashboard.roles:
-                return True
-
-            return any(
+            return (not is_feature_enabled("DASHBOARD_RBAC")) or any(
                 dashboard_role.id
                 in [user_role.id for user_role in self.get_user_roles()]
                 for dashboard_role in dashboard.roles
@@ -2076,18 +2073,15 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
         from superset.models.dashboard import Dashboard
         from superset.models.slice import Slice
 
-        dashboard_ids = db.session.query(Dashboard.id)
-        dashboard_ids = DashboardAccessFilter(
-            "id", SQLAInterface(Dashboard, db.session)
-        ).apply(dashboard_ids, None)
-
         datasource_class = type(datasource)
         query = (
-            db.session.query(Dashboard.id)
-            .join(Slice, Dashboard.slices)
+            db.session.query(datasource_class)
             .join(Slice.table)
             .filter(datasource_class.id == datasource.id)
-            .filter(Dashboard.id.in_(dashboard_ids))
+        )
+
+        query = DashboardAccessFilter("id", SQLAInterface(Dashboard, db.session)).apply(
+            query, None
         )
 
         exists = db.session.query(query.exists()).scalar()

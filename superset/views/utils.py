@@ -23,12 +23,11 @@ from urllib import parse
 import msgpack
 import pyarrow as pa
 import simplejson as json
-from flask import flash, g, has_request_context, redirect, request
+from flask import g, has_request_context, request
 from flask_appbuilder.security.sqla import models as ab_models
 from flask_appbuilder.security.sqla.models import User
 from flask_babel import _
 from sqlalchemy.orm.exc import NoResultFound
-from werkzeug.wrappers.response import Response
 
 import superset.models.core as models
 from superset import app, dataframe, db, result_set, viz
@@ -593,8 +592,3 @@ def get_cta_schema_name(
     if not func:
         return None
     return func(database, user, schema, sql)
-
-
-def redirect_with_flash(url: str, message: str, category: str) -> Response:
-    flash(message=message, category=category)
-    return redirect(url)

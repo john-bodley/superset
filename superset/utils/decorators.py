@@ -116,7 +116,9 @@ def on_security_exception(self: Any, ex: Exception) -> Response:
 
 
 # noinspection PyPackageRequirements
-def check_dashboard_access(on_error: Callable[[str], Any]) -> Callable[..., Any]:
+def check_dashboard_access(
+    on_error: Callable[..., Any] = on_security_exception
+) -> Callable[..., Any]:
     def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(f)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
@@ -128,7 +130,7 @@ def check_dashboard_access(on_error: Callable[[str], Any]) -> Callable[..., Any]
                 try:
                     current_app.appbuilder.sm.raise_for_dashboard_access(dashboard)
                 except DashboardAccessDeniedError as ex:
-                    return on_error(str(ex))
+                    return on_error(self, ex)
                 except Exception as exception:
                     raise exception
 
