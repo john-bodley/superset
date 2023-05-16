@@ -19,7 +19,6 @@
 import rison from 'rison';
 import { SupersetClient, t } from '@superset-ui/core';
 import { addSuccessToast } from 'src/components/MessageToasts/actions';
-import { isEmpty } from 'lodash';
 import { buildV1ChartDataPayload } from '../exploreUtils';
 
 const ADHOC_FILTER_REGEX = /^adhoc_filters/;
@@ -54,35 +53,19 @@ export function removeSaveModalAlert() {
   return { type: REMOVE_SAVE_MODAL_ALERT };
 }
 
-const extractAddHocFiltersFromFormData = formDataToHandle =>
-  Object.entries(formDataToHandle).reduce(
+export const getSlicePayload = (
+  sliceName,
+  formDataWithNativeFilters,
+  dashboards,
+  owners,
+) => {
+  const adhocFilters = Object.entries(formDataWithNativeFilters).reduce(
     (acc, [key, value]) =>
       ADHOC_FILTER_REGEX.test(key)
         ? { ...acc, [key]: value?.filter(f => !f.isExtra) }
         : acc,
     {},
   );
-
-export const getSlicePayload = (
-  sliceName,
-  formDataWithNativeFilters,
-  dashboards,
-  owners,
-  formDataFromSlice = {},
-) => {
-  let adhocFilters = extractAddHocFiltersFromFormData(
-    formDataWithNativeFilters,
-  );
-
-  // Retain adhoc_filters from the slice if no adhoc_filters are present
-  // after overwriting a chart.  This ensures the dashboard can continue
-  // to filter the chart. Before, any time range filter applied in the dashboard
-  // would end up as an extra filter and when overwriting the chart the original
-  // time range adhoc_filter was lost
-  if (isEmpty(adhocFilters?.adhoc_filters) && !isEmpty(formDataFromSlice)) {
-    adhocFilters = extractAddHocFiltersFromFormData(formDataFromSlice);
-  }
-
   const formData = {
     ...formDataWithNativeFilters,
     ...adhocFilters,
@@ -151,9 +134,8 @@ const addToasts = (isNewSlice, sliceName, addedToDashboard) => {
 
 //  Update existing slice
 export const updateSlice =
-  (slice, sliceName, dashboards, addedToDashboard) =>
+  ({ slice_id: sliceId, owners }, sliceName, dashboards, addedToDashboard) =>
   async (dispatch, getState) => {
-    const { slice_id: sliceId, owners, form_data: formDataFromSlice } = slice;
     const {
       explore: {
         form_data: { url_params: _, ...formData },
@@ -162,13 +144,7 @@ export const updateSlice =
     try {
       const response = await SupersetClient.put({
         endpoint: `/api/v1/chart/${sliceId}`,
-        jsonPayload: getSlicePayload(
-          sliceName,
-          formData,
-          dashboards,
-          owners,
-          formDataFromSlice,
-        ),
+        jsonPayload: getSlicePayload(sliceName, formData, dashboards, owners),
       });
 
       dispatch(saveSliceSuccess());
