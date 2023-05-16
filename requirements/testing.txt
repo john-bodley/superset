@@ -133,7 +133,7 @@ sqlalchemy-bigquery==1.5.0
     # via apache-superset
 statsd==3.3.0
     # via -r requirements/testing.in
-trino==0.319.0
+trino==0.324.0
     # via apache-superset
 websocket-client==1.2.0
     # via docker
