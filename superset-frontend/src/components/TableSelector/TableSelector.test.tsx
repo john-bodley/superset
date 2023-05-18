@@ -99,7 +99,6 @@ test('skips select all options', async () => {
   const props = createProps();
   render(<TableSelector {...props} tableSelectMode="multiple" />, {
     useRedux: true,
-    store,
   });
   const tableSelect = screen.getByRole('combobox', {
     name: 'Select table or type to search tables',
