@@ -26,6 +26,19 @@ from superset.exceptions import SupersetException
 from superset.tags.models import TagTypes
 from superset.utils import core as utils
 
+dashboard_dataset_query_schema = {
+    "type": "object",
+    "properties": {
+        "columns": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": r"^[^\.]+$",
+            },
+        },
+    },
+}
+
 get_delete_ids_schema = {"type": "array", "items": {"type": "integer"}}
 get_export_ids_schema = {"type": "array", "items": {"type": "integer"}}
 get_fav_star_ids_schema = {"type": "array", "items": {"type": "integer"}}

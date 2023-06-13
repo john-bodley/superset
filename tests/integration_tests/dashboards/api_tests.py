@@ -183,6 +183,32 @@ class TestDashboardApi(SupersetTestCase, ApiOwnersTestCaseMixin, InsertChartMixi
         response = self.get_assert_metric(uri, "get_datasets")
         self.assertEqual(response.status_code, 404)
 
+    @pytest.mark.usefixtures("load_world_bank_dashboard_with_slices")
+    def test_get_dashboard_datasets_query(self):
+        self.login(username="admin")
+
+        response = self.get_assert_metric(
+            "api/v1/dashboard/world_health/datasets?q={}".format(
+                prison.dumps({"columns": ["name"]})
+            ),
+            "get_datasets",
+        )
+
+        assert response.json == {"result": [{"name": "main.wb_health_population"}]}
+
+    def test_get_dashboard_datasets_query_invalid(self):
+        self.login(username="admin")
+
+        response = self.client.get(
+            "api/v1/dashboard/world_health/datasets?q={}".format(
+                prison.dumps({"columns": ["database.name"]})
+            )
+        )
+
+        assert response.json["message"].startswith(
+            "Not a valid rison schema 'database.name' does not match"
+        )
+
     @pytest.mark.usefixtures("create_dashboards")
     def test_get_gamma_dashboard_datasets(self):
         """

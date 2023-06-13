@@ -66,6 +66,7 @@ from superset.dashboards.filters import (
     FilterRelatedRoles,
 )
 from superset.dashboards.schemas import (
+    dashboard_dataset_query_schema,
     DashboardCopySchema,
     DashboardDatasetSchema,
     DashboardGetResponseSchema,
@@ -278,6 +279,7 @@ class DashboardRestApi(BaseSupersetModelRestApi):
         EmbeddedDashboardResponseSchema,
     )
     apispec_parameter_schemas = {
+        "dashboard_dataset_query_schema": dashboard_dataset_query_schema,
         "get_delete_ids_schema": get_delete_ids_schema,
         "get_export_ids_schema": get_export_ids_schema,
         "thumbnail_query_schema": thumbnail_query_schema,
@@ -364,12 +366,13 @@ class DashboardRestApi(BaseSupersetModelRestApi):
         skip=lambda _self, id_or_slug: not is_feature_enabled("DASHBOARD_CACHE"),
     )
     @safe
+    @rison(dashboard_dataset_query_schema)
     @statsd_metrics
     @event_logger.log_this_with_context(
         action=lambda self, *args, **kwargs: f"{self.__class__.__name__}.get_datasets",
         log_to_statsd=False,
     )
-    def get_datasets(self, id_or_slug: str) -> Response:
+    def get_datasets(self, id_or_slug: str, **kwargs: Any) -> Response:
         """Gets a dashboard's datasets
         ---
         get:
@@ -382,6 +385,12 @@ class DashboardRestApi(BaseSupersetModelRestApi):
               type: string
             name: id_or_slug
             description: Either the id of the dashboard, or its slug
+          - in: query
+            name: q
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/dashboard_dataset_query_schema'
           responses:
             200:
               description: Dashboard dataset definitions
@@ -403,11 +412,22 @@ class DashboardRestApi(BaseSupersetModelRestApi):
             404:
               $ref: '#/components/responses/404'
         """
+
         try:
             datasets = DashboardDAO.get_datasets_for_dashboard(id_or_slug)
+
+            if "columns" in kwargs["rison"]:
+                datasets = [
+                    {key: value}
+                    for dataset in datasets
+                    for key, value in dataset.items()
+                    if key in kwargs["rison"]["columns"]
+                ]
+
             result = [
                 self.dashboard_dataset_schema.dump(dataset) for dataset in datasets
             ]
+
             return self.response(200, result=result)
         except (TypeError, ValueError) as err:
             return self.response_400(
