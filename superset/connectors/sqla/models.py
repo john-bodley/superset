@@ -1596,10 +1596,17 @@ class SqlaTable(Model, BaseDatasource):  # pylint: disable=too-many-public-metho
                         where_clause_and.append(sqla_col >= eq)
                     elif op == utils.FilterOperator.LESS_THAN_OR_EQUALS.value:
                         where_clause_and.append(sqla_col <= eq)
-                    elif op == utils.FilterOperator.LIKE.value:
-                        where_clause_and.append(sqla_col.like(eq))
-                    elif op == utils.FilterOperator.ILIKE.value:
-                        where_clause_and.append(sqla_col.ilike(eq))
+                    elif op in {
+                        utils.FilterOperator.ILIKE.value,
+                        utils.FilterOperator.LIKE.value,
+                    }:
+                        if target_generic_type != GenericDataType.STRING:
+                            sqla_col = sa.cast(sqla_col, sa.String)
+
+                        if op == utils.FilterOperator.LIKE.value:
+                            where_clause_and.append(sqla_col.like(eq))
+                        else:
+                            where_clause_and.append(sqla_col.ilike(eq))
                     elif (
                         op == utils.FilterOperator.TEMPORAL_RANGE.value
                         and isinstance(eq, str)
