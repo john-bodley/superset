@@ -113,6 +113,7 @@ export default function transformProps(chartProps) {
   const data = Array.isArray(rawData)
     ? rawData.map(row => ({
         ...row,
+        values: row.values.map(value => ({ ...value })),
         key: formatLabel(row.key, datasource.verboseMap),
       }))
     : rawData;
