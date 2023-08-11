@@ -18,7 +18,6 @@
 from operator import and_
 from unittest.mock import patch  # noqa: F401
 import pytest
-from superset.daos.exceptions import DAOCreateFailedError, DAOException  # noqa: F401
 from superset.models.slice import Slice
 from superset.models.sql_lab import SavedQuery  # noqa: F401
 from superset.daos.tag import TagDAO

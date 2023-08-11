@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING
+# pylint: disable=consider-using-transaction
+from typing import Any, TYPE_CHECKING
 
 from flask_appbuilder import expose
 from flask_appbuilder.models.sqla.interface import SQLAInterface

@@ -91,7 +91,7 @@ class TestCore(SupersetTestCase):
         self.original_unsafe_db_setting = app.config["PREVENT_UNSAFE_DB_CONNECTIONS"]
 
     def tearDown(self):
-        db.session.query(Query).delete()
+        # db.session.query(Query).delete()
         app.config["PREVENT_UNSAFE_DB_CONNECTIONS"] = self.original_unsafe_db_setting
         super().tearDown()
 
@@ -235,6 +235,7 @@ class TestCore(SupersetTestCase):
         )
         for slc in slices:
             db.session.delete(slc)
+        print(db.session.dirty)
         db.session.commit()
 
     @pytest.mark.usefixtures("load_birth_names_dashboard_with_slices")
@@ -667,6 +668,7 @@ class TestCore(SupersetTestCase):
             client_id="client_id_1",
             username="admin",
         )
+        print(resp)
         count_ds = []
         count_name = []
         for series in data["data"]:

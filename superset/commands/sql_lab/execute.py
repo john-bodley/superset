@@ -22,10 +22,11 @@ import logging
 from typing import Any, TYPE_CHECKING
 
 from flask_babel import gettext as __
+from sqlalchemy.exc import SQLAlchemyError
 
+from superset import db
 from superset.commands.base import BaseCommand
 from superset.common.db_query_status import QueryStatus
-from superset.daos.exceptions import DAOCreateFailedError
 from superset.errors import SupersetErrorType
 from superset.exceptions import (
     SupersetErrorException,
@@ -41,6 +42,7 @@ from superset.sqllab.exceptions import (
 )
 from superset.sqllab.execution_context_convertor import ExecutionContextConvertor
 from superset.sqllab.limiting_factor import LimitingFactor
+from superset.utils.decorators import transaction
 
 if TYPE_CHECKING:
     from superset.daos.database import DatabaseDAO
@@ -90,6 +92,7 @@ class ExecuteSqlCommand(BaseCommand):
     def validate(self) -> None:
         pass
 
+    @transaction()
     def run(  # pylint: disable=too-many-statements,useless-suppression
         self,
     ) -> CommandResult:
@@ -141,6 +144,7 @@ class ExecuteSqlCommand(BaseCommand):
         self._execution_context.set_database(self._get_the_query_db())
         query = self._execution_context.create_query()
         self._save_new_query(query)
+        db.session.flush()
         try:
             logger.info("Triggering query_id: %i", query.id)
 
@@ -180,7 +184,7 @@ class ExecuteSqlCommand(BaseCommand):
     def _save_new_query(self, query: Query) -> None:
         try:
             self._query_dao.create(query)
-        except DAOCreateFailedError as ex:
+        except SQLAlchemyError as ex:
             raise SqlLabException(
                 self._execution_context,
                 SupersetErrorType.GENERIC_DB_ENGINE_ERROR,

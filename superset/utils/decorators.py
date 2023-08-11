@@ -20,10 +20,12 @@ import logging
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from functools import wraps
 from typing import Any, Callable, TYPE_CHECKING
 from uuid import UUID
 
 from flask import current_app, g, Response
+from sqlalchemy.exc import SQLAlchemyError
 
 from superset.utils import core as utils
 from superset.utils.dates import now_as_float
@@ -207,3 +209,57 @@ def suppress_logging(
         yield
     finally:
         target_logger.setLevel(original_level)
+
+
+def on_error(
+    ex: Exception,
+    catches: tuple[type[Exception], ...] = (SQLAlchemyError,),
+    reraise: type[Exception] | None = SQLAlchemyError,
+) -> None:
+    """
+    Default error handler whenever any exception is caught during a SQLAlchemy nested
+    transaction.
+
+    :param ex: The source exception
+    :param catches: The exception types the handler catches
+    :param reraise: The exception type the handler reraises after catching
+    :raises Exception: If the exception is not swallowed
+    """
+
+    if isinstance(ex, catches):
+        if hasattr(ex, "exception"):
+            logger.exception(ex.exception)
+
+        if reraise:
+            raise reraise() from ex
+    else:
+        raise ex
+
+
+def transaction(  # pylint: disable=redefined-outer-name
+    on_error: Callable[..., Any] | None = on_error,
+) -> Callable[..., Any]:
+    """
+    Perform a "unit of work" by leveraging SQLAlchemy's nested transaction.
+
+    :param on_error: Callback invoked when an exception is caught
+    :see: https://github.com/apache/superset/issues/25108
+    """
+
+    def decorate(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
+            from superset import db  # pylint: disable=import-outside-toplevel
+
+            try:
+                with db.session.begin_nested():
+                    return func(*args, **kwargs)
+            except Exception as ex:
+                if on_error:
+                    return on_error(ex)
+
+                raise ex
+
+        return wrapped
+
+    return decorate

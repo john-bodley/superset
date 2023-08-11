@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from functools import partial
 from typing import Any
 
 from flask_appbuilder.models.sqla import Model
@@ -25,7 +26,6 @@ from flask_appbuilder.models.sqla import Model
 from superset import is_feature_enabled, security_manager
 from superset.commands.base import BaseCommand
 from superset.commands.database.exceptions import (
-    DatabaseConnectionFailedError,
     DatabaseExistsValidationError,
     DatabaseInvalidError,
     DatabaseNotFoundError,
@@ -40,10 +40,10 @@ from superset.commands.database.ssh_tunnel.exceptions import (
 from superset.commands.database.ssh_tunnel.update import UpdateSSHTunnelCommand
 from superset.daos.database import DatabaseDAO
 from superset.daos.dataset import DatasetDAO
-from superset.daos.exceptions import DAOCreateFailedError, DAOUpdateFailedError
 from superset.databases.ssh_tunnel.models import SSHTunnel
 from superset.extensions import db
 from superset.models.core import Database
+from superset.utils.decorators import on_error, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class UpdateDatabaseCommand(BaseCommand):
         self._model_id = model_id
         self._model: Database | None = None
 
+    @transaction(on_error=partial(on_error, reraise=DatabaseUpdateFailedError))
     def run(self) -> Model:
         self._model = DatabaseDAO.find_by_id(self._model_id)
 
@@ -88,8 +89,6 @@ class UpdateDatabaseCommand(BaseCommand):
         except SSHTunnelError:  # pylint: disable=try-except-raise
             # allow exception to bubble for debugbing information
             raise
-        except (DAOUpdateFailedError, DAOCreateFailedError) as ex:
-            raise DatabaseUpdateFailedError() from ex
 
         return database
 

@@ -64,6 +64,7 @@ def load_world_bank_data():
             )
 
     yield
+
     with app.app_context():
         with get_example_database().get_sqla_engine() as engine:
             engine.execute("DROP TABLE IF EXISTS wb_health_population")
@@ -72,15 +73,14 @@ def load_world_bank_data():
 @pytest.fixture()
 def load_world_bank_dashboard_with_slices(load_world_bank_data):
     with app.app_context():
-        dash_id_to_delete, slices_ids_to_delete = create_dashboard_for_loaded_data()
+        create_dashboard_for_loaded_data()
         yield
-        _cleanup(dash_id_to_delete, slices_ids_to_delete)
 
 
 @pytest.fixture(scope="module")
 def load_world_bank_dashboard_with_slices_module_scope(load_world_bank_data):
     with app.app_context():
-        dash_id_to_delete, slices_ids_to_delete = create_dashboard_for_loaded_data()
+        create_dashboard_for_loaded_data()
         yield
         _cleanup_reports(dash_id_to_delete, slices_ids_to_delete)
         _cleanup(dash_id_to_delete, slices_ids_to_delete)
@@ -89,9 +89,8 @@ def load_world_bank_dashboard_with_slices_module_scope(load_world_bank_data):
 @pytest.fixture(scope="class")
 def load_world_bank_dashboard_with_slices_class_scope(load_world_bank_data):
     with app.app_context():
-        dash_id_to_delete, slices_ids_to_delete = create_dashboard_for_loaded_data()
+        create_dashboard_for_loaded_data()
         yield
-        _cleanup(dash_id_to_delete, slices_ids_to_delete)
 
 
 def create_dashboard_for_loaded_data():
@@ -103,24 +102,22 @@ def create_dashboard_for_loaded_data():
     return dash_id_to_delete, slices_ids_to_delete
 
 
-def _create_world_bank_slices(table: SqlaTable) -> list[Slice]:
+def _create_world_bank_slices(table: SqlaTable) -> None:
     from superset.examples.world_bank import create_slices
 
     slices = create_slices(table)
-    _commit_slices(slices)
-    return slices
+
+    for slc in slices:
+        if (
+            obj := db.session.query(Slice)
+            .filter_by(slice_name=slc.slice_name)
+            .one_or_none()
+        ):
+            db.session.delete(obj)
+        db.session.add(slc)
 
 
-def _commit_slices(slices: list[Slice]):
-    for slice in slices:
-        o = db.session.query(Slice).filter_by(slice_name=slice.slice_name).one_or_none()
-        if o:
-            db.session.delete(o)
-        db.session.add(slice)
-        db.session.commit()
-
-
-def _create_world_bank_dashboard(table: SqlaTable) -> Dashboard:
+def _create_world_bank_dashboard(table: SqlaTable) -> None:
     from superset.examples.helpers import update_slice_ids
     from superset.examples.world_bank import dashboard_positions
 
@@ -133,16 +130,6 @@ def _create_world_bank_dashboard(table: SqlaTable) -> Dashboard:
         "world_health", "World Bank's Data", json.dumps(pos), slices
     )
     dash.json_metadata = '{"mock_key": "mock_value"}'
-    db.session.commit()
-    return dash
-
-
-def _cleanup(dash_id: int, slices_ids: list[int]) -> None:
-    dash = db.session.query(Dashboard).filter_by(id=dash_id).first()
-    db.session.delete(dash)
-    for slice_id in slices_ids:
-        db.session.query(Slice).filter_by(id=slice_id).delete()
-    db.session.commit()
 
 
 def _cleanup_reports(dash_id: int, slices_ids: list[int]) -> None:
