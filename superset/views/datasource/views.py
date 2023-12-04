@@ -165,7 +165,6 @@ class Datasource(BaseSupersetView):
             return json_error_response(str(err), status=400)
 
         datasource = SqlaTable.get_datasource_by_name(
-            session=db.session,
             database_name=params["database_name"],
             schema=params["schema_name"],
             datasource_name=params["table_name"],

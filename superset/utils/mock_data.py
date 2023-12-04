@@ -231,12 +231,10 @@ def generate_column_data(column: ColumnInfo, num_rows: int) -> list[Any]:
     return [gen() for _ in range(num_rows)]
 
 
-def add_sample_rows(
-    session: Session, model: type[Model], count: int
-) -> Iterator[Model]:
+def add_sample_rows(model: type[Model], count: int) -> Iterator[Model]:
     """
     Add entities of a given model.
-    :param Session session: an SQLAlchemy session
+    
     :param Model model: a Superset/FAB model
     :param int count: how many entities to generate and insert
     """
@@ -244,7 +242,7 @@ def add_sample_rows(
 
     # select samples to copy relationship values
     relationships = inspector.relationships.items()
-    samples = session.query(model).limit(count).all() if relationships else []
+    samples = db.session.query(model).limit(count).all() if relationships else []
 
     max_primary_key: Optional[int] = None
     for i in range(count):
@@ -255,7 +253,7 @@ def add_sample_rows(
             if column.primary_key:
                 if max_primary_key is None:
                     max_primary_key = (
-                        session.query(func.max(getattr(model, column.name))).scalar()
+                        db.session.query(func.max(getattr(model, column.name))).scalar()
                         or 0
                     )
                 max_primary_key += 1

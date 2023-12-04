@@ -699,7 +699,7 @@ class BaseDatasource(
 
     @classmethod
     def get_datasource_by_name(
-        cls, session: Session, datasource_name: str, schema: str, database_name: str
+        cls, datasource_name: str, schema: str, database_name: str
     ) -> BaseDatasource | None:
         raise NotImplementedError()
 
@@ -1238,14 +1238,13 @@ class SqlaTable(
     @classmethod
     def get_datasource_by_name(
         cls,
-        session: Session,
         datasource_name: str,
         schema: str | None,
         database_name: str,
     ) -> SqlaTable | None:
         schema = schema or None
         query = (
-            session.query(cls)
+            db.session.query(cls)
             .join(Database)
             .filter(cls.table_name == datasource_name)
             .filter(Database.database_name == database_name)
