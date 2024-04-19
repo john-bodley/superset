@@ -59,6 +59,7 @@ def get_or_create_db(
     if database and database.sqlalchemy_uri_decrypted != sqlalchemy_uri:
         database.set_sqlalchemy_uri(sqlalchemy_uri)
 
+    db.session.flush()
     return database
 
 
@@ -78,3 +79,4 @@ def remove_database(database: Database) -> None:
     from superset import db
 
     db.session.delete(database)
+    db.session.flush()

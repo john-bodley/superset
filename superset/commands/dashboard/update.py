@@ -53,19 +53,16 @@ class UpdateDashboardCommand(UpdateMixin, BaseCommand):
         assert self._model
 
         # Update tags
-        tags = self._properties.pop("tags", None)
-        if tags is not None:
-            update_tags(
-                ObjectType.dashboard, self._model.id, self._model.tags, tags
-            )
+        if (tags := self._properties.pop("tags", None)) is not None:
+            update_tags(ObjectType.dashboard, self._model.id, self._model.tags, tags)
 
-        dashboard = DashboardDAO.update(self._model, self._properties, commit=False)
+        dashboard = DashboardDAO.update(self._model, self._properties)
         if self._properties.get("json_metadata"):
             DashboardDAO.set_dash_metadata(
                 dashboard,
                 data=json.loads(self._properties.get("json_metadata", "{}")),
             )
-        
+
         return dashboard
 
     def validate(self) -> None:

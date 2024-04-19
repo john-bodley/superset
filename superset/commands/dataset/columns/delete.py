@@ -43,7 +43,7 @@ class DeleteDatasetColumnCommand(BaseCommand):
     def run(self) -> None:
         self.validate()
         assert self._model
-        DatasetColumnDAO.delete(self._model)
+        DatasetColumnDAO.delete([self._model])
 
     def validate(self) -> None:
         # Validate/populate model exists

@@ -20,7 +20,6 @@ from typing import Any, Optional
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from superset import db
 from superset.commands.explore.permalink.base import BaseExplorePermalinkCommand
 from superset.commands.key_value.create import CreateKeyValueCommand
 from superset.explore.permalink.exceptions import ExplorePermalinkCreateFailedError
@@ -74,27 +73,7 @@ class CreateExplorePermalinkCommand(BaseExplorePermalinkCommand):
         key = command.run()
         if key.id is None:
             raise ExplorePermalinkCreateFailedError("Unexpected missing key id")
-        db.session.commit()
         return encode_permalink_key(key=key.id, salt=self.salt)
-        d_id, d_type = self.datasource.split("__")
-        datasource_id = int(d_id)
-        datasource_type = DatasourceType(d_type)
-        check_chart_access(datasource_id, self.chart_id, datasource_type)
-        value = {
-            "chartId": self.chart_id,
-            "datasourceId": datasource_id,
-            "datasourceType": datasource_type.value,
-            "datasource": self.datasource,
-            "state": self.state,
-        }
-        command = CreateKeyValueCommand(
-            resource=self.resource,
-            value=value,
-            codec=self.codec,
-        )
-        key = command.run()
-        return encode_permalink_key(key=key.id, salt=self.salt)
->>>>>>> c01dacb71a (chore(dao): Use nested session for operations)
 
     def validate(self) -> None:
         pass

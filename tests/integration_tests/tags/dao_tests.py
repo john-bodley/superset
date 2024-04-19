@@ -187,6 +187,7 @@ class TestTagsDAO(SupersetTestCase):
                     TaggedObject.object_type == ObjectType.chart,
                 ),
             )
+            .join(Tag, TaggedObject.tag_id == Tag.id)
             .distinct(Slice.id)
             .count()
         )
@@ -199,6 +200,7 @@ class TestTagsDAO(SupersetTestCase):
                     TaggedObject.object_type == ObjectType.dashboard,
                 ),
             )
+            .join(Tag, TaggedObject.tag_id == Tag.id)
             .distinct(Dashboard.id)
             .count()
             + num_charts

@@ -40,7 +40,7 @@ from superset.commands.database.ssh_tunnel.exceptions import (
 )
 from superset.commands.database.test_connection import TestConnectionDatabaseCommand
 from superset.daos.database import DatabaseDAO
-from superset.daos.exceptions import DAOCreateFailedError
+from superset.databases.ssh_tunnel.models import SSHTunnel
 from superset.exceptions import SupersetErrorsException
 from superset.extensions import event_logger, security_manager
 from superset.models.core import Database

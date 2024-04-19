@@ -91,7 +91,7 @@ class TestCore(SupersetTestCase):
         self.original_unsafe_db_setting = app.config["PREVENT_UNSAFE_DB_CONNECTIONS"]
 
     def tearDown(self):
-        # db.session.query(Query).delete()
+        db.session.query(Query).delete()
         app.config["PREVENT_UNSAFE_DB_CONNECTIONS"] = self.original_unsafe_db_setting
         super().tearDown()
 
@@ -235,7 +235,6 @@ class TestCore(SupersetTestCase):
         )
         for slc in slices:
             db.session.delete(slc)
-        print(db.session.dirty)
         db.session.commit()
 
     @pytest.mark.usefixtures("load_birth_names_dashboard_with_slices")
@@ -668,7 +667,6 @@ class TestCore(SupersetTestCase):
             client_id="client_id_1",
             username="admin",
         )
-        print(resp)
         count_ds = []
         count_name = []
         for series in data["data"]:
@@ -816,7 +814,7 @@ class TestCore(SupersetTestCase):
         mock_cache.return_value = MockCache()
 
         rv = self.client.get("/superset/explore_json/data/valid-cache-key")
-        self.assertEqual(rv.status_code, 401)
+        self.assertEqual(rv.status_code, 403)
 
     def test_explore_json_data_invalid_cache_key(self):
         self.login(ADMIN_USERNAME)

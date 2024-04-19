@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from flask_appbuilder.models.sqla import Model
 from marshmallow import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from superset import security_manager
 from superset.commands.base import BaseCommand, UpdateMixin
@@ -60,7 +61,16 @@ class UpdateDatasetCommand(UpdateMixin, BaseCommand):
         self.override_columns = override_columns
         self._properties["override_columns"] = override_columns
 
-    @transaction(on_error=partial(on_error, reraise=DatasetUpdateFailedError))
+    @transaction(
+        on_error=partial(
+            on_error,
+            catches=(
+                SQLAlchemyError,
+                ValueError,
+            ),
+            reraise=DatasetUpdateFailedError,
+        )
+    )
     def run(self) -> Model:
         self.validate()
         assert self._model

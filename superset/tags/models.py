@@ -140,6 +140,7 @@ def get_tag(
     if tag is None:
         tag = Tag(name=escape(tag_name), type=type_)
         session.add(tag)
+        session.commit()
     return tag
 
 

@@ -38,8 +38,8 @@ from superset.daos.chart import ChartDAO
 from superset.daos.dashboard import DashboardDAO
 from superset.exceptions import SupersetSecurityException
 from superset.models.slice import Slice
-from superset.utils.decorators import on_error, transaction
 from superset.tags.models import ObjectType
+from superset.utils.decorators import on_error, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +62,13 @@ class UpdateChartCommand(UpdateMixin, BaseCommand):
         assert self._model
 
         # Update tags
-        tags = self._properties.pop("tags", None)
-        if tags is not None:
+        if (tags := self._properties.pop("tags", None)) is not None:
             update_tags(ObjectType.chart, self._model.id, self._model.tags, tags)
 
         if self._properties.get("query_context_generation") is None:
             self._properties["last_saved_at"] = datetime.now()
             self._properties["last_saved_by"] = g.user
-            
+
         return ChartDAO.update(self._model, self._properties)
 
     def validate(self) -> None:

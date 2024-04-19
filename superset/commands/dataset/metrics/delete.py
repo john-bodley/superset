@@ -43,7 +43,7 @@ class DeleteDatasetMetricCommand(BaseCommand):
     def run(self) -> None:
         self.validate()
         assert self._model
-        DatasetMetricDAO.delete(self._model)
+        DatasetMetricDAO.delete([self._model])
 
     def validate(self) -> None:
         # Validate/populate model exists

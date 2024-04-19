@@ -383,5 +383,4 @@ class TagDAO(BaseDAO[Tag]):
                     object_id,
                     tag.name,
                 )
-
         db.session.add_all(tagged_objects)

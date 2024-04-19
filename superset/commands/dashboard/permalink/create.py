@@ -19,7 +19,6 @@ from functools import partial
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from superset import db
 from superset.commands.dashboard.permalink.base import BaseDashboardPermalinkCommand
 from superset.commands.key_value.upsert import UpsertKeyValueCommand
 from superset.daos.dashboard import DashboardDAO
@@ -78,6 +77,7 @@ class CreateDashboardPermalinkCommand(BaseDashboardPermalinkCommand):
             codec=self.codec,
         ).run()
         assert key.id  # for type checks
+        return encode_permalink_key(key=key.id, salt=self.salt)
 
     def validate(self) -> None:
         pass

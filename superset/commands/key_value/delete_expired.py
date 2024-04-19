@@ -60,4 +60,3 @@ class DeleteExpiredKeyValueCommand(BaseCommand):
             )
             .delete()
         )
-        db.session.flush()

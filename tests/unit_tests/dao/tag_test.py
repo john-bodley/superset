@@ -22,7 +22,6 @@ def test_user_favorite_tag(mocker):
     from superset.daos.tag import TagDAO
 
     # Mock the behavior of TagDAO and g
-    mock_session = mocker.patch("superset.daos.tag.db.session")
     mock_TagDAO = mocker.patch(
         "superset.daos.tag.TagDAO"
     )  # Replace with the actual path to TagDAO
@@ -45,7 +44,6 @@ def test_remove_user_favorite_tag(mocker):
     from superset.daos.tag import TagDAO
 
     # Mock the behavior of TagDAO and g
-    mock_session = mocker.patch("superset.daos.tag.db.session")
     mock_TagDAO = mocker.patch("superset.daos.tag.TagDAO")
     mock_tag = mocker.MagicMock(users_favorited=[])
     mock_TagDAO.find_by_id.return_value = mock_tag

@@ -21,6 +21,8 @@ from functools import partial
 from typing import Any, Optional, Union
 from uuid import UUID
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from superset import db
 from superset.commands.base import BaseCommand
 from superset.commands.key_value.create import CreateKeyValueCommand
@@ -71,7 +73,7 @@ class UpsertKeyValueCommand(BaseCommand):
     @transaction(
         on_error=partial(
             on_error,
-            catches=(KeyValueCreateFailedError,),
+            catches=(KeyValueCreateFailedError, SQLAlchemyError),
             reraise=KeyValueUpsertFailedError,
         ),
     )
@@ -82,16 +84,15 @@ class UpsertKeyValueCommand(BaseCommand):
         pass
 
     def upsert(self) -> Key:
-        filter_ = get_filter(self.resource, self.key)
-        entry: KeyValueEntry = (
-            db.session.query(KeyValueEntry).filter_by(**filter_).first()
-        )
-        if entry:
+        if (
+            entry := db.session.query(KeyValueEntry)
+            .filter_by(**get_filter(self.resource, self.key))
+            .first()
+        ):
             entry.value = self.codec.encode(self.value)
             entry.expires_on = self.expires_on
             entry.changed_on = datetime.now()
             entry.changed_by_fk = get_user_id()
-            db.session.flush()
             return Key(entry.id, entry.uuid)
 
         return CreateKeyValueCommand(

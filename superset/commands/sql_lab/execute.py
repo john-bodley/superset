@@ -144,7 +144,6 @@ class ExecuteSqlCommand(BaseCommand):
         self._execution_context.set_database(self._get_the_query_db())
         query = self._execution_context.create_query()
         self._save_new_query(query)
-        db.session.flush()
         try:
             logger.info("Triggering query_id: %i", query.id)
 
@@ -182,6 +181,17 @@ class ExecuteSqlCommand(BaseCommand):
             )
 
     def _save_new_query(self, query: Query) -> None:
+        """
+        Saves the new SQL Lab query.
+
+        Committing within a transaction violates the "unit of work" construct, but is
+        necessary for async querying given how the command is currently defined.
+
+        To mitigate said issue, ideally there would be a command to prepare said query
+        and another to execute it, either in a sync or async manner.
+
+        :param query: The SQL Lab query
+        """
         try:
             self._query_dao.create(query)
         except SQLAlchemyError as ex:
@@ -192,6 +202,8 @@ class ExecuteSqlCommand(BaseCommand):
                 ex,
                 "Please contact an administrator for further assistance or try again.",
             ) from ex
+
+        db.session.commit()  # pylint: disable=consider-using-transaction
 
     def _validate_access(self, query: Query) -> None:
         try:

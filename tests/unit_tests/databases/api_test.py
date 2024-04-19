@@ -116,7 +116,7 @@ def test_post_with_uuid(
     assert payload["result"]["uuid"] == "7c1b7880-a59d-47cd-8bf1-f1eb8d2863cb"
 
     database = session.query(Database).one()
-    assert database.uuid == "7c1b7880-a59d-47cd-8bf1-f1eb8d2863cb"
+    assert database.uuid == UUID("7c1b7880-a59d-47cd-8bf1-f1eb8d2863cb")
 
 
 def test_password_mask(

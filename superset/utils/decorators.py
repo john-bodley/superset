@@ -222,7 +222,7 @@ def on_error(
 
     :param ex: The source exception
     :param catches: The exception types the handler catches
-    :param reraise: The exception type the handler reraises after catching
+    :param reraise: The exception type the handler raises after catching
     :raises Exception: If the exception is not swallowed
     """
 
@@ -240,7 +240,11 @@ def transaction(  # pylint: disable=redefined-outer-name
     on_error: Callable[..., Any] | None = on_error,
 ) -> Callable[..., Any]:
     """
-    Perform a "unit of work" by leveraging SQLAlchemy's nested transaction.
+    Perform a "unit of work".
+
+    Note ideally this would leverage SQLAlchemy's nested transaction, however this
+    proved rather complicated, likely due to many architectural facets, and thus has
+    been left for a follow up exercise.
 
     :param on_error: Callback invoked when an exception is caught
     :see: https://github.com/apache/superset/issues/25108
@@ -252,13 +256,16 @@ def transaction(  # pylint: disable=redefined-outer-name
             from superset import db  # pylint: disable=import-outside-toplevel
 
             try:
-                with db.session.begin_nested():
-                    return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                db.session.commit()  # pylint: disable=consider-using-transaction
+                return result
             except Exception as ex:
+                db.session.rollback()  # pylint: disable=consider-using-transaction
+
                 if on_error:
                     return on_error(ex)
 
-                raise ex
+                raise
 
         return wrapped
 

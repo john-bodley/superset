@@ -137,6 +137,7 @@ class BaseReportState:
             uuid=self._execution_id,
         )
         db.session.add(log)
+        db.session.commit()  # pylint: disable=consider-using-transaction
 
     def _get_url(
         self,

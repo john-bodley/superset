@@ -37,15 +37,7 @@ def load_test_users() -> None:
     Syncs permissions for those users/roles
     """
     print(Fore.GREEN + "Loading a set of users for unit tests")
-    load_test_users_run()
 
-
-def load_test_users_run() -> None:
-    """
-    Loads admin, alpha, and gamma user for testing purposes
-
-    Syncs permissions for those users/roles
-    """
     if app.config["TESTING"]:
         sm = security_manager
 
