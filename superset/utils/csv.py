@@ -49,10 +49,6 @@ def escape_value(value: str) -> str:
     is_negative_number = negative_number_re.match(value) is not None
 
     if needs_escaping and not is_negative_number:
-        # Escape pipe to be extra safe as this
-        # can lead to remote code execution
-        value = value.replace("|", "\\|")
-
         # Precede the line with a single quote. This prevents
         # evaluation of commands and some spreadsheet software
         # will hide this visually from the user. Many articles
