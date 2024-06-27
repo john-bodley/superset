@@ -240,11 +240,7 @@ def transaction(  # pylint: disable=redefined-outer-name
     on_error: Callable[..., Any] | None = on_error,
 ) -> Callable[..., Any]:
     """
-    Perform a "unit of work".
-
-    Note ideally this would leverage SQLAlchemy's nested transaction, however this
-    proved rather complicated, likely due to many architectural facets, and thus has
-    been left for a follow up exercise.
+    Perform a "unit of work" leveraging SQLAlchemy's nested transaction.
 
     :param on_error: Callback invoked when an exception is caught
     :see: https://github.com/apache/superset/issues/25108
@@ -256,12 +252,9 @@ def transaction(  # pylint: disable=redefined-outer-name
             from superset import db  # pylint: disable=import-outside-toplevel
 
             try:
-                result = func(*args, **kwargs)
-                db.session.commit()  # pylint: disable=consider-using-transaction
-                return result
+                with db.session.begin_nested():
+                    return func(*args, **kwargs)
             except Exception as ex:
-                db.session.rollback()  # pylint: disable=consider-using-transaction
-
                 if on_error:
                     return on_error(ex)
 
