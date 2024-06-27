@@ -204,7 +204,6 @@ class SupersetTestCase(TestCase):
         try:
             if login:
                 resp = self.login(username=temp_user.username)
-                print(resp)
             else:
                 g.user = temp_user
             yield temp_user

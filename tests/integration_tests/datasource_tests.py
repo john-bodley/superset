@@ -362,7 +362,6 @@ class TestDatasource(SupersetTestCase):
             elif k == "owners":
                 self.assertEqual([o["id"] for o in resp[k]], datasource_post["owners"])
             else:
-                print(k)
                 self.assertEqual(resp[k], datasource_post[k])
 
     def test_save_default_endpoint_validation_success(self):

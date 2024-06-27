@@ -281,11 +281,9 @@ class TestDatabaseApi(SupersetTestCase):
             "server_cert": None,
             "extra": json.dumps(extra),
         }
-        print(database_data)
         uri = "api/v1/database/"
         rv = self.client.post(uri, json=database_data)
         response = json.loads(rv.data.decode("utf-8"))
-        print(response)
         self.assertEqual(rv.status_code, 201)
         # Cleanup
         model = db.session.query(Database).get(response.get("id"))
@@ -701,7 +699,6 @@ class TestDatabaseApi(SupersetTestCase):
         mock_create_is_feature_enabled.return_value = True
         self.login(ADMIN_USERNAME)
         example_db = get_example_database()
-        print(example_db)
         if example_db.backend == "sqlite":
             return
         ssh_tunnel_properties = {
@@ -715,11 +712,9 @@ class TestDatabaseApi(SupersetTestCase):
             "sqlalchemy_uri": example_db.sqlalchemy_uri_decrypted,
             "ssh_tunnel": ssh_tunnel_properties,
         }
-        print(database_data)
         uri = "api/v1/database/"
         rv = self.client.post(uri, json=database_data)
         response = json.loads(rv.data.decode("utf-8"))
-        print(response)
         self.assertEqual(rv.status_code, 201)
         model_ssh_tunnel = (
             db.session.query(SSHTunnel)
@@ -917,7 +912,6 @@ class TestDatabaseApi(SupersetTestCase):
 
         self.login(ADMIN_USERNAME)
         example_db = get_example_database()
-        print(example_db)
         if example_db.backend == "sqlite":
             return
         database_data = {
@@ -927,11 +921,9 @@ class TestDatabaseApi(SupersetTestCase):
             "server_cert": None,
             "extra": json.dumps(extra),
         }
-        print(database_data)
         uri = "api/v1/database/"
         rv = self.client.post(uri, json=database_data)
         response = json.loads(rv.data.decode("utf-8"))
-        print(response)
         assert response == {
             "message": {
                 "configuration_method": [
@@ -1891,9 +1883,7 @@ class TestDatabaseApi(SupersetTestCase):
             }
             uri = f"api/v1/database/?q={prison.dumps(arguments)}"
             rv = self.client.get(uri)
-            print(rv)
             data = json.loads(rv.data.decode("utf-8"))
-            print(data)
             assert data["count"] == 1
 
     def test_get_allow_file_upload_filter_no_permission(self):

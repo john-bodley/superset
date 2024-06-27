@@ -48,7 +48,7 @@ from flask_login import AnonymousUserMixin, LoginManager
 from jwt.api_jwt import _jwt_global_obj
 from sqlalchemy import and_, inspect, or_
 from sqlalchemy.engine.base import Connection
-from sqlalchemy.orm import eagerload
+from sqlalchemy.orm import eagerload, Session
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.orm.query import Query as SqlaQuery
 
@@ -332,6 +332,28 @@ class SupersetSecurityManager(  # pylint: disable=too-many-public-methods
 
     guest_user_cls = GuestUser
     pyjwt_for_guest_token = _jwt_global_obj
+
+    @property
+    def get_session(self) -> Session:
+        """
+        Flask-AppBuilder (FAB) which has a tendency to explicitly commit, thus violating
+        our definition of "unit of work".
+
+        By providing a monkey patched transaction for the FAB session, within the
+        confines of a nested session, ensures that any explicit commit merely flushes
+        and any rollback is a no-op.
+        """
+
+        # pylint: disable=import-outside-toplevel
+        from superset import db
+
+        if db.session._proxied._nested_transaction:  # pylint: disable=protected-access
+            with db.session.begin_nested() as transaction:
+                transaction.session.commit = transaction.session.flush
+                transaction.session.rollback = lambda: None
+                return transaction.session
+
+        return db.session
 
     def create_login_manager(self, app: Flask) -> LoginManager:
         lm = super().create_login_manager(app)

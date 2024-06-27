@@ -267,11 +267,8 @@ def test_run_async_query_cta_config(test_client, ctas_method):
         async_=True,
         tmp_table=tmp_table_name,
     )
-    print(result)
 
     query = wait_for_success(result)
-    print(query.to_dict())
-
     assert QueryStatus.SUCCESS == query.status
     assert (
         get_select_star(tmp_table_name, limit=query.limit, schema=CTAS_SCHEMA_NAME)
@@ -325,9 +322,6 @@ def test_run_async_cta_query_with_lower_limit(test_client, ctas_method):
         tmp_table=tmp_table,
     )
     query = wait_for_success(result)
-    print(">>> test_run_async_cta_query_with_lower_limit <<<")
-    print(result)
-    print(query.to_dict())
     assert QueryStatus.SUCCESS == query.status
 
     sqlite_select_sql = f"SELECT\n  *\nFROM {tmp_table}\nLIMIT {query.limit}\nOFFSET 0"
