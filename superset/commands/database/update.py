@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from functools import partial
 from typing import Any
 
 from flask_appbuilder.models.sqla import Model
@@ -40,10 +41,9 @@ from superset.commands.database.ssh_tunnel.exceptions import (
 from superset.commands.database.ssh_tunnel.update import UpdateSSHTunnelCommand
 from superset.daos.database import DatabaseDAO
 from superset.daos.dataset import DatasetDAO
-from superset.daos.exceptions import DAOCreateFailedError, DAOUpdateFailedError
 from superset.databases.ssh_tunnel.models import SSHTunnel
-from superset.extensions import db
 from superset.models.core import Database
+from superset.utils.decorators import on_error, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class UpdateDatabaseCommand(BaseCommand):
         self._model_id = model_id
         self._model: Database | None = None
 
+    @transaction(on_error=partial(on_error, reraise=DatabaseUpdateFailedError))
     def run(self) -> Model:
         self._model = DatabaseDAO.find_by_id(self._model_id)
 
@@ -77,19 +78,13 @@ class UpdateDatabaseCommand(BaseCommand):
         original_database_name = self._model.database_name
 
         try:
-            database = DatabaseDAO.update(
-                self._model,
-                self._properties,
-                commit=False,
-            )
+            database = DatabaseDAO.update(self._model, self._properties)
             database.set_sqlalchemy_uri(database.sqlalchemy_uri)
             ssh_tunnel = self._handle_ssh_tunnel(database)
             self._refresh_catalogs(database, original_database_name, ssh_tunnel)
         except SSHTunnelError:  # pylint: disable=try-except-raise
-            # allow exception to bubble for debugbing information
+            # allow exception to bubble for debugging information
             raise
-        except (DAOUpdateFailedError, DAOCreateFailedError) as ex:
-            raise DatabaseUpdateFailedError() from ex
 
         return database
 
@@ -101,7 +96,6 @@ class UpdateDatabaseCommand(BaseCommand):
             return None
 
         if not is_feature_enabled("SSH_TUNNELING"):
-            db.session.rollback()
             raise SSHTunnelingNotEnabledError()
 
         current_ssh_tunnel = DatabaseDAO.get_ssh_tunnel(database.id)
@@ -131,13 +125,13 @@ class UpdateDatabaseCommand(BaseCommand):
         This method captures a generic exception, since errors could potentially come
         from any of the 50+ database drivers we support.
         """
+
         try:
             return database.get_all_catalog_names(
                 force=True,
                 ssh_tunnel=ssh_tunnel,
             )
         except Exception as ex:
-            db.session.rollback()
             raise DatabaseConnectionFailedError() from ex
 
     def _get_schema_names(
@@ -152,6 +146,7 @@ class UpdateDatabaseCommand(BaseCommand):
         This method captures a generic exception, since errors could potentially come
         from any of the 50+ database drivers we support.
         """
+
         try:
             return database.get_all_schema_names(
                 force=True,
@@ -159,7 +154,6 @@ class UpdateDatabaseCommand(BaseCommand):
                 ssh_tunnel=ssh_tunnel,
             )
         except Exception as ex:
-            db.session.rollback()
             raise DatabaseConnectionFailedError() from ex
 
     def _refresh_catalogs(
@@ -224,8 +218,6 @@ class UpdateDatabaseCommand(BaseCommand):
                     catalog,
                     schemas,
                 )
-
-        db.session.commit()
 
     def _refresh_schemas(
         self,
